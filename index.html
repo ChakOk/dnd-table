@@ -72,6 +72,14 @@ textarea{min-height:110px;resize:vertical}
 .sc{display:flex;gap:.6rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
 .sc span{flex:1}.sc small{display:block;color:var(--muted)}
 .tag{color:var(--ok);font-size:13px}
+.upl{display:inline-block;margin:0;background:var(--brass);color:#1a1405;border-radius:4px;padding:.55rem .9rem;font:600 14px system-ui,sans-serif;cursor:pointer}
+.upl:focus-within{outline:2px solid var(--foam)}
+button[aria-pressed="true"]{outline:2px solid var(--foam)}
+#mapTools .row select{flex:1;min-width:0;margin:0}
+.tk{width:44px;height:44px;border-radius:50%;border:3px solid var(--brass);background:var(--sea);color:var(--foam);font:700 18px/38px Georgia,serif;text-align:center;overflow:hidden;box-shadow:0 2px 6px #000a}
+.tk img{width:100%;height:100%;object-fit:cover;display:block}
+.tk.party{border-radius:8px;border-color:var(--ok)}.tk.npc{border-color:var(--bad)}
+.tkl{background:var(--deep);color:var(--foam);border:1px solid var(--line);font:600 12px system-ui,sans-serif;padding:1px 6px;box-shadow:none}
 @media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
@@ -100,9 +108,14 @@ textarea{min-height:110px;resize:vertical}
     <aside>
       <h2>Таблицы базы</h2>
       <table id="tables"></table>
-      <h2>Точка на карте</h2>
-      <p>Нажмите на карту: появятся координаты. Карта пока оболочка, настоящую подключим позже.</p>
-      <p id="coords">нет выбора</p>
+      <h2>Сцена</h2>
+      <p id="mapInfo" class="ms"></p>
+      <div id="mapTools" hidden>
+        <div class="row"><select id="tokChar" aria-label="Персонаж"></select><button id="addTok" type="button">Поставить персонажа</button></div>
+        <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
+        <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
+      </div>
+      <p id="mapMsg" class="msg" role="status"></p>
     </aside>
   </main>
   <div id="scenesView" hidden>
@@ -149,21 +162,137 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
 const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
 
-// ---- Карта (оболочка)
-let map = null, marker = null;
-function initMap() {
-  if (map) { map.invalidateSize(); return; }
-  const W = 150000, H = 100000, bounds = [[0, 0], [H, W]];
-  map = L.map("map", {crs: L.CRS.Simple, minZoom: -9, maxZoom: 0, zoomSnap: .25, attributionControl: false});
-  L.rectangle(bounds, {color: "#c9a24b", weight: 2, fillColor: "#123246", fillOpacity: 1}).addTo(map);
-  for (let x = 0; x <= W; x += 10000) L.polyline([[0, x], [H, x]], {color: "#1d4256", weight: 1}).addTo(map);
-  for (let y = 0; y <= H; y += 10000) L.polyline([[y, 0], [y, W]], {color: "#1d4256", weight: 1}).addTo(map);
-  map.fitBounds(bounds);
-  map.on("click", e => {
-    $("coords").textContent = "x " + Math.round(e.latlng.lng) + ", y " + Math.round(H - e.latlng.lat);
-    if (marker) marker.remove();
-    marker = L.circleMarker(e.latlng, {radius: 6, color: "#c9a24b", fillOpacity: .9}).addTo(map);
+// ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
+let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0;
+const mmsg = (t, ok) => { $("mapMsg").textContent = t; $("mapMsg").className = "msg" + (ok ? " good" : ""); };
+const ll = (x, y) => [dims.h - y, x];
+
+function clearScene() {
+  if (bg) { bg.remove(); bg = null; }
+  Object.values(tokM).forEach(m => m.remove()); tokM = {};
+  fxL.forEach(l => l.remove()); fxL = []; toks = []; effs = []; scn = null; dims = null;
+}
+
+async function openScene() {
+  const gen = ++mapGen;
+  const cur = scenes.find(s => s.is_current);
+  $("mapTools").hidden = !me.master;
+  if (!map) {
+    map = L.map("map", {crs: L.CRS.Simple, minZoom: -6, maxZoom: 2, zoomSnap: .25, attributionControl: false});
+    map.on("click", onMapClick);
+  }
+  setTimeout(() => map.invalidateSize(), 0);
+  if (me.master) fillTokChars();
+  if (!cur) { clearScene(); $("mapInfo").textContent = me.master ? "Ни одна сцена не открыта для партии." : "Мастер ещё не открыл сцену."; mmsg(""); return; }
+  $("mapInfo").textContent = cur.name + " (" + KINDS[cur.kind] + ")";
+  if (scn && scn.id === cur.id && scn.image_url === cur.image_url) { loadSceneObjects(); return; }
+  clearScene();
+  if (!cur.image_url) { mmsg(me.master ? "У сцены нет фона: загрузите его во вкладке «Сцены»." : "У этой сцены пока нет фона."); return; }
+  const r = await db.storage.from("maps").createSignedUrl(cur.image_url, 3600);
+  if (gen !== mapGen) return;
+  if (r.error) { mmsg("Фон не открылся. Мастеру: выполнен ли supabase_maps.sql?"); return; }
+  const img = new Image();
+  await new Promise(res => { img.onload = res; img.onerror = res; img.src = r.data.signedUrl; });
+  if (gen !== mapGen) return;
+  if (!img.naturalWidth) { mmsg("Фон не открылся."); return; }
+  scn = cur; dims = {w: img.naturalWidth, h: img.naturalHeight};
+  bg = L.imageOverlay(r.data.signedUrl, [[0, 0], [dims.h, dims.w]]).addTo(map);
+  map.setMaxBounds([[-dims.h * .1, -dims.w * .1], [dims.h * 1.1, dims.w * 1.1]]);
+  map.fitBounds([[0, 0], [dims.h, dims.w]]);
+  mmsg("");
+  loadSceneObjects();
+}
+
+async function loadSceneObjects() {
+  if (!scn || !dims) return;
+  const sid = scn.id;
+  const [t, e] = await Promise.all([
+    db.from("tokens").select("id,label,kind,owner,character_id,x,y").eq("scene_id", sid),
+    db.from("effects").select("id,kind,x,y,radius").eq("scene_id", sid)]);
+  if (!scn || scn.id !== sid) return;
+  toks = t.data || []; effs = e.data || [];
+  drawEffects(); drawTokens();
+}
+
+function drawEffects() {
+  fxL.forEach(l => l.remove()); fxL = [];
+  effs.forEach(e => fxL.push(L.circle(ll(e.x, e.y), {radius: e.radius, color: "#3b2410", weight: 1, fillColor: "#2b1a10", fillOpacity: .6, interactive: false}).addTo(map)));
+}
+
+function tokIcon(t) {
+  const c = chars.find(c => c.id === t.character_id), src = c && c.photo_url && urls[c.photo_url];
+  const d = el("div", "tk " + t.kind);
+  if (src) { const i = el("img"); i.src = src; i.alt = ""; d.appendChild(i); } else d.textContent = (t.label || "?").trim().charAt(0).toUpperCase();
+  return L.divIcon({html: d, className: "", iconSize: [44, 44], iconAnchor: [22, 22]});
+}
+
+function drawTokens() {
+  const keep = new Set(toks.map(t => t.id));
+  Object.keys(tokM).forEach(id => { if (!keep.has(id)) { tokM[id].remove(); delete tokM[id]; } });
+  toks.forEach(t => {
+    let m = tokM[t.id];
+    if (m) { if (!dragging) m.setLatLng(ll(t.x, t.y)); return; }
+    const can = me.master || (t.owner && t.owner === me.id);
+    m = L.marker(ll(t.x, t.y), {draggable: !!can, icon: tokIcon(t), keyboard: false}).addTo(map);
+    const lab = el("span", "", t.label); m.bindTooltip(lab, {permanent: true, direction: "bottom", offset: [0, 22], className: "tkl"});
+    m.on("dragstart", () => { dragging = true; });
+    m.on("dragend", async () => {
+      const p = m.getLatLng(), x = Math.round(p.lng), y = Math.round(dims.h - p.lat);
+      const { error } = await db.from("tokens").update({x, y}).eq("id", t.id);
+      dragging = false;
+      if (error) { mmsg("Не удалось переместить токен."); loadSceneObjects(); }
+    });
+    tokM[t.id] = m;
   });
+}
+
+function fillTokChars() {
+  const s = $("tokChar"), v = s.value; s.innerHTML = "";
+  chars.forEach(c => { const o = el("option", "", c.name + (c.profiles ? " (" + c.profiles.display_name + ")" : "")); o.value = c.id; s.appendChild(o); });
+  if (v) s.value = v;
+}
+async function addToken(row) {
+  if (!scn || !dims) { mmsg("Нет открытой сцены с фоном."); return; }
+  const { error } = await db.from("tokens").insert({scene_id: scn.id, x: Math.round(dims.w / 2), y: Math.round(dims.h / 2), ...row});
+  if (error) mmsg("Не удалось добавить токен."); else loadSceneObjects();
+}
+$("addTok").onclick = () => { const c = chars.find(c => c.id === $("tokChar").value); if (c) addToken({label: c.name, kind: "pc", character_id: c.id, owner: c.owner}); };
+$("addParty").onclick = () => addToken({label: "Партия", kind: "party"});
+$("fxBtn").onclick = () => { fxMode = !fxMode; $("fxBtn").setAttribute("aria-pressed", fxMode); if (map) map.getContainer().style.cursor = fxMode ? "crosshair" : ""; };
+$("fxClear").onclick = async () => {
+  if (!scn || !confirm("Убрать все следы эффектов на этой сцене?")) return;
+  const { error } = await db.from("effects").delete().eq("scene_id", scn.id);
+  if (error) mmsg("Не удалось убрать."); else loadSceneObjects();
+};
+function boom() {
+  try {
+    const A = window.AudioContext || window.webkitAudioContext, a = new A(), n = a.sampleRate * .7, b = a.createBuffer(1, n, a.sampleRate), o = b.getChannelData(0);
+    for (let i = 0; i < n; i++) o[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3);
+    const s = a.createBufferSource(), g = a.createGain(); s.buffer = b; g.gain.value = .5; s.connect(g); g.connect(a.destination); s.start();
+  } catch (e) {}
+}
+async function onMapClick(e) {
+  if (!fxMode || !me.master || !scn || !dims) return;
+  const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
+  if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
+  const radius = Math.round(Math.max(dims.w, dims.h) / 40);
+  const { error } = await db.from("effects").insert({scene_id: scn.id, kind: "scorched", x, y, radius});
+  if (error) mmsg("Не удалось поставить эффект."); else { boom(); loadSceneObjects(); }
+}
+
+// ---- Загрузка фона сцены (мастер)
+async function uploadBg(s, file) {
+  if (!file) return;
+  if (file.size > 20 * 1024 * 1024) { smsg("Файл больше 20 МБ."); return; }
+  smsg("Загружаю фон…");
+  const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/webp" ? "webp" : "png";
+  const path = s.id + "-" + Date.now() + "." + ext;
+  const up = await db.storage.from("maps").upload(path, file, {contentType: file.type});
+  if (up.error) { smsg("Фон не загрузился. Мастеру: выполнен ли supabase_maps.sql?"); return; }
+  const { error } = await db.from("scenes").update({image_url: path}).eq("id", s.id);
+  if (error) { smsg("Фон загружен, но не привязан к сцене."); return; }
+  if (s.image_url) await db.storage.from("maps").remove([s.image_url]);
+  await loadScenes(); smsg("Фон загружен.", true);
 }
 
 // ---- Проверка для гостя (на экране входа): данные должны быть закрыты
@@ -178,7 +307,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  me = null; if (chan) { db.removeChannel(chan); chan = null; }
+  me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -204,7 +333,7 @@ async function showApp(session) {
 const VIEWS = {chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
   for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
-  if (name === "map") initMap();
+  if (name === "map") openScene();
   if (name === "scenes") loadScenes();
 }
 $("tabChars").onclick = () => tab("chars");
@@ -392,9 +521,9 @@ let scenes = [], chan = null;
 const smsg = (t, ok) => { $("sceneMsg").textContent = t; $("sceneMsg").className = "msg" + (ok ? " good" : ""); };
 
 async function loadScenes() {
-  const { data, error } = await db.from("scenes").select("id,name,kind,is_current").order("created_at");
+  const { data, error } = await db.from("scenes").select("id,name,kind,image_url,is_current").order("created_at");
   if (error) { smsg("Сцены недоступны. Мастеру: выполните supabase_scenes.sql."); return; }
-  smsg(""); scenes = data; renderScenes();
+  smsg(""); scenes = data; renderScenes(); if (!$("mapView").hidden) openScene();
 }
 function renderScenes() {
   const cur = scenes.find(s => s.is_current);
@@ -404,7 +533,7 @@ function renderScenes() {
   const list = $("sceneList"); list.innerHTML = "";
   if (!me.master) return;
   scenes.forEach(s => {
-    const row = el("div", "sc"), t = el("span", "", s.name); t.appendChild(el("small", "", KINDS[s.kind]));
+    const row = el("div", "sc"), t = el("span", "", s.name); t.appendChild(el("small", "", KINDS[s.kind] + (s.image_url ? " · фон загружен" : " · фона нет")));
     row.appendChild(t);
     if (s.is_current) row.appendChild(el("span", "tag", "открыта для партии"));
     else {
@@ -415,11 +544,14 @@ function renderScenes() {
       };
       row.appendChild(open);
     }
+    const fi = el("input"); fi.type = "file"; fi.accept = "image/png,image/jpeg,image/webp"; fi.hidden = true;
+    const up = el("label", "upl", s.image_url ? "Заменить фон" : "Загрузить фон"); up.appendChild(fi);
+    fi.onchange = () => uploadBg(s, fi.files[0]); row.appendChild(up);
     const del = el("button", "danger", "Удалить"); del.type = "button";
     del.onclick = async () => {
       if (!confirm("Удалить сцену «" + s.name + "» вместе с её токенами, эффектами и туманом? Это нельзя отменить.")) return;
       const { error } = await db.from("scenes").delete().eq("id", s.id);
-      if (error) smsg("Не удалось удалить."); else { await loadScenes(); smsg("Удалено.", true); }
+      if (error) smsg("Не удалось удалить."); else { if (s.image_url) await db.storage.from("maps").remove([s.image_url]); await loadScenes(); smsg("Удалено.", true); }
     };
     row.appendChild(del); list.appendChild(row);
   });
@@ -433,7 +565,11 @@ $("sceneForm").addEventListener("submit", async e => {
 });
 function subscribeScenes() {
   if (chan) return;
-  chan = db.channel("scenes-live").on("postgres_changes", {event: "*", schema: "public", table: "scenes"}, () => loadScenes()).subscribe();
+  chan = db.channel("scenes-live")
+    .on("postgres_changes", {event: "*", schema: "public", table: "scenes"}, () => loadScenes())
+    .on("postgres_changes", {event: "*", schema: "public", table: "tokens"}, () => { if (!dragging) loadSceneObjects(); })
+    .on("postgres_changes", {event: "*", schema: "public", table: "effects"}, () => loadSceneObjects())
+    .subscribe();
 }
 
 // ---- Вход и выход
