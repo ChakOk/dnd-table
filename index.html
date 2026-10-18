@@ -66,6 +66,12 @@ textarea{min-height:110px;resize:vertical}
 .ab{padding:.4rem 0;border-bottom:1px solid var(--line)}
 .ab small{display:block;color:var(--muted)}
 .num{width:4.2rem;display:inline-block;margin:0 .3rem}
+#scenesView{flex:1;overflow:auto;padding:1.2rem;font-family:system-ui,sans-serif}
+.scn{max-width:560px}
+.scn h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 .6rem}
+.sc{display:flex;gap:.6rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
+.sc span{flex:1}.sc small{display:block;color:var(--muted)}
+.tag{color:var(--ok);font-size:13px}
 @media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
@@ -86,7 +92,7 @@ textarea{min-height:110px;resize:vertical}
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button></div>
     <div><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <main id="mapView" hidden>
@@ -99,6 +105,21 @@ textarea{min-height:110px;resize:vertical}
       <p id="coords">нет выбора</p>
     </aside>
   </main>
+  <div id="scenesView" hidden>
+    <div class="scn">
+      <h2>Сцены</h2>
+      <p id="curScene" class="ms"></p>
+      <form id="sceneForm" hidden>
+        <label>Название сцены<input id="sName" maxlength="80" required></label>
+        <label>Тип
+          <select id="sKind"><option value="location">Локация</option><option value="generated">Сгенерированная</option><option value="route_segment">Сегмент маршрута</option><option value="world">Мир</option></select>
+        </label>
+        <button type="submit">Создать сцену</button>
+      </form>
+      <div id="sceneList"></div>
+      <p id="sceneMsg" class="msg" role="status"></p>
+    </div>
+  </div>
   <div id="charsView">
     <div id="charList"></div>
     <div id="charEdit">
@@ -126,7 +147,7 @@ const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
 const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, данные защищены правилами базы
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log"];
+const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
 
 // ---- Карта (оболочка)
 let map = null, marker = null;
@@ -157,7 +178,8 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  me = null; $("app").hidden = true; $("login").hidden = false;
+  me = null; if (chan) { db.removeChannel(chan); chan = null; }
+  $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
 }
@@ -175,17 +197,18 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); loadChars();
+  sel = null; tab("chars"); loadChars(); loadScenes(); subscribeScenes();
 }
 
 // ---- Вкладки
+const VIEWS = {chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
-  const c = name === "chars";
-  $("charsView").hidden = !c; $("mapView").hidden = c;
-  $("tabChars").setAttribute("aria-selected", c); $("tabMap").setAttribute("aria-selected", !c);
-  if (!c) initMap();
+  for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
+  if (name === "map") initMap();
+  if (name === "scenes") loadScenes();
 }
 $("tabChars").onclick = () => tab("chars");
+$("tabScenes").onclick = () => tab("scenes");
 $("tabMap").onclick = () => tab("map");
 
 // ---- Персонажи
@@ -362,6 +385,56 @@ $("delBtn").addEventListener("click", async () => {
   if (cur.photo_url) await db.storage.from("photos").remove([cur.photo_url]);
   sel = null; await loadChars(); msg("Удалено.", true);
 });
+
+// ---- Сцены: мастер создаёт и открывает для партии, игрок видит открытую сцену
+const KINDS = {world: "Мир", location: "Локация", generated: "Сгенерированная", route_segment: "Сегмент маршрута"};
+let scenes = [], chan = null;
+const smsg = (t, ok) => { $("sceneMsg").textContent = t; $("sceneMsg").className = "msg" + (ok ? " good" : ""); };
+
+async function loadScenes() {
+  const { data, error } = await db.from("scenes").select("id,name,kind,is_current").order("created_at");
+  if (error) { smsg("Сцены недоступны. Мастеру: выполните supabase_scenes.sql."); return; }
+  smsg(""); scenes = data; renderScenes();
+}
+function renderScenes() {
+  const cur = scenes.find(s => s.is_current);
+  $("curScene").textContent = cur ? "Сейчас открыта: " + cur.name + " (" + KINDS[cur.kind] + ")"
+    : (me.master ? "Ни одна сцена не открыта для партии." : "Мастер ещё не открыл сцену.");
+  $("sceneForm").hidden = !me.master;
+  const list = $("sceneList"); list.innerHTML = "";
+  if (!me.master) return;
+  scenes.forEach(s => {
+    const row = el("div", "sc"), t = el("span", "", s.name); t.appendChild(el("small", "", KINDS[s.kind]));
+    row.appendChild(t);
+    if (s.is_current) row.appendChild(el("span", "tag", "открыта для партии"));
+    else {
+      const open = el("button", "", "Открыть для партии"); open.type = "button";
+      open.onclick = async () => {
+        const { error } = await db.rpc("set_current_scene", {p_id: s.id});
+        if (error) smsg("Не удалось открыть сцену."); else { await loadScenes(); smsg("Сцена открыта.", true); }
+      };
+      row.appendChild(open);
+    }
+    const del = el("button", "danger", "Удалить"); del.type = "button";
+    del.onclick = async () => {
+      if (!confirm("Удалить сцену «" + s.name + "» вместе с её токенами, эффектами и туманом? Это нельзя отменить.")) return;
+      const { error } = await db.from("scenes").delete().eq("id", s.id);
+      if (error) smsg("Не удалось удалить."); else { await loadScenes(); smsg("Удалено.", true); }
+    };
+    row.appendChild(del); list.appendChild(row);
+  });
+}
+$("sceneForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("sName").value.trim(); if (!name) return;
+  const { error } = await db.from("scenes").insert({name, kind: $("sKind").value});
+  if (error) { smsg("Не удалось создать сцену."); return; }
+  $("sName").value = ""; await loadScenes(); smsg("Сцена создана.", true);
+});
+function subscribeScenes() {
+  if (chan) return;
+  chan = db.channel("scenes-live").on("postgres_changes", {event: "*", schema: "public", table: "scenes"}, () => loadScenes()).subscribe();
+}
 
 // ---- Вход и выход
 $("loginForm").addEventListener("submit", async e => {
