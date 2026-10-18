@@ -8,82 +8,141 @@
 <title>ДнД-проект: стол мастера</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root{--sea:#0f2a3a;--deep:#081822;--brass:#c9a24b;--foam:#e8eef0;--muted:#8aa3ae;--ok:#6fbf8b;--bad:#e07a6a}
+:root{--sea:#0f2a3a;--deep:#081822;--brass:#c9a24b;--foam:#e8eef0;--muted:#8aa3ae;--ok:#6fbf8b;--bad:#e07a6a;--line:#1d4256}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{height:100%;margin:0}
-body{background:var(--deep);color:var(--foam);font:16px/1.5 Georgia,"Times New Roman",serif;display:flex;flex-direction:column}
+body{background:var(--deep);color:var(--foam);font:16px/1.5 Georgia,"Times New Roman",serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+#login{flex:1;display:flex;align-items:center;justify-content:center;padding:1rem}
+.card{width:100%;max-width:360px;background:var(--sea);border:1px solid var(--line);border-top:3px solid var(--brass);border-radius:6px;padding:1.5rem;font-family:system-ui,sans-serif}
+.card h1{font:600 1.4rem Georgia,serif;margin:0 0 .2rem}
+.sub{margin:0 0 1rem;color:var(--muted);font-size:14px}
+label{display:block;font-size:14px;margin-bottom:.8rem;color:var(--muted)}
+input{display:block;width:100%;margin-top:.25rem;padding:.55rem .6rem;border-radius:4px;border:1px solid var(--line);background:var(--deep);color:var(--foam);font:16px system-ui,sans-serif}
+input:focus-visible,button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+button{background:var(--brass);color:#1a1405;border:0;border-radius:4px;padding:.55rem .9rem;font:600 14px system-ui,sans-serif;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}
+#loginForm button{width:100%;padding:.65rem}
+.msg{min-height:1.4em;margin:.8rem 0 0;font-size:14px;color:var(--bad)}
+.small{margin:.4rem 0 0;font-size:12px;color:var(--muted)}
+#app{flex:1;display:flex;flex-direction:column;min-height:0}
 header{display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:var(--sea);border-bottom:2px solid var(--brass)}
-h1{font-size:1.15rem;margin:0;letter-spacing:.02em}
-#status{font:14px system-ui,sans-serif;color:var(--muted)}
-#status.ok{color:var(--ok)}#status.bad{color:var(--bad)}
+header h1{font-size:1.15rem;margin:0}
+#who{font:14px system-ui,sans-serif;color:var(--muted);margin-right:.8rem}
 main{flex:1;display:grid;grid-template-columns:1fr 300px;min-height:0}
 #map{background:#0b2231}
-aside{padding:1rem;overflow:auto;background:var(--sea);border-left:1px solid #1d4256;font:14px/1.5 system-ui,sans-serif}
+aside{padding:1rem;overflow:auto;background:var(--sea);border-left:1px solid var(--line);font:14px/1.5 system-ui,sans-serif}
 aside h2{font:600 1rem Georgia,serif;margin:.2rem 0 .6rem;color:var(--brass)}
 table{width:100%;border-collapse:collapse;margin-bottom:1rem}
-td{padding:.25rem 0;border-bottom:1px solid #1d4256}
+td{padding:.25rem 0;border-bottom:1px solid var(--line)}
 td:last-child{text-align:right}
 .ok{color:var(--ok)}.bad{color:var(--bad)}
-#coords{font-variant-numeric:tabular-nums;color:var(--foam)}
-button{background:var(--brass);color:#1a1405;border:0;border-radius:4px;padding:.45rem .8rem;font:600 14px system-ui,sans-serif;cursor:pointer}
-button:focus-visible{outline:2px solid var(--foam);outline-offset:2px}
-@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid #1d4256}}
+@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
 </head>
 <body>
-<header><h1>ДнД-проект: стол мастера</h1><span id="status">Подключаюсь к базе…</span></header>
-<main>
-  <div id="map" aria-label="Карта мира"></div>
-  <aside>
-    <h2>Таблицы базы</h2>
-    <table id="tables"></table>
-    <h2>Точка на карте</h2>
-    <p>Нажмите на карту: координаты холста Figma появятся здесь. По ним позже привяжем 26 городов.</p>
-    <p id="coords">нет выбора</p>
-    <button id="copy" type="button">Скопировать координаты</button>
-  </aside>
-</main>
+<section id="login">
+  <form id="loginForm" class="card">
+    <h1>ДнД-проект</h1>
+    <p class="sub">Вход для мастера и игроков</p>
+    <label>Почта<input id="email" type="email" autocomplete="username" required></label>
+    <label>Пароль<input id="pass" type="password" autocomplete="current-password" required></label>
+    <button id="loginBtn" type="submit">Войти</button>
+    <p id="loginMsg" class="msg" role="alert"></p>
+    <p id="guestCheck" class="small"></p>
+  </form>
+</section>
+
+<section id="app" hidden>
+  <header>
+    <h1>ДнД-проект: стол мастера</h1>
+    <div><span id="who"></span><button id="logout" type="button">Выйти</button></div>
+  </header>
+  <main>
+    <div id="map" aria-label="Карта мира"></div>
+    <aside>
+      <h2>Таблицы базы</h2>
+      <table id="tables"></table>
+      <h2>Точка на карте</h2>
+      <p>Нажмите на карту: появятся координаты. Карта пока оболочка, настоящую подключим позже.</p>
+      <p id="coords">нет выбора</p>
+    </aside>
+  </main>
+</section>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script>
 const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
-const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, защищён правилами базы
-
-// Карта: холст Figma 150000 x 100000 px. Пока без плиток: сетка и клик.
-const W = 150000, H = 100000;
-const map = L.map("map", {crs: L.CRS.Simple, minZoom: -9, maxZoom: 0, zoomSnap: .25, attributionControl: false});
-const bounds = [[0, 0], [H, W]];
-L.rectangle(bounds, {color: "#c9a24b", weight: 2, fillColor: "#123246", fillOpacity: 1}).addTo(map);
-for (let x = 0; x <= W; x += 10000) L.polyline([[0, x], [H, x]], {color: "#1d4256", weight: 1}).addTo(map);
-for (let y = 0; y <= H; y += 10000) L.polyline([[y, 0], [y, W]], {color: "#1d4256", weight: 1}).addTo(map);
-map.fitBounds(bounds);
-
-let marker = null, last = "";
-map.on("click", e => {
-  const x = Math.round(e.latlng.lng), y = Math.round(H - e.latlng.lat);
-  last = x + ", " + y;
-  document.getElementById("coords").textContent = "x " + x + ", y " + y;
-  if (marker) marker.remove();
-  marker = L.circleMarker(e.latlng, {radius: 6, color: "#c9a24b", fillOpacity: .9}).addTo(map);
-});
-document.getElementById("copy").onclick = () => { if (last) navigator.clipboard.writeText(last); };
-
-// База: проверка связи и таблиц
+const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, данные защищены правилами базы
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const names = ["campaigns","sessions","characters","map_objects","tokens","effects","sounds","glossary","world_notes"];
-const status = document.getElementById("status"), tbl = document.getElementById("tables");
-(async () => {
-  let okCount = 0;
+const $ = id => document.getElementById(id);
+const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log"];
+
+// ---- Карта (оболочка)
+let map = null, marker = null;
+function initMap() {
+  if (map) { map.invalidateSize(); return; }
+  const W = 150000, H = 100000, bounds = [[0, 0], [H, W]];
+  map = L.map("map", {crs: L.CRS.Simple, minZoom: -9, maxZoom: 0, zoomSnap: .25, attributionControl: false});
+  L.rectangle(bounds, {color: "#c9a24b", weight: 2, fillColor: "#123246", fillOpacity: 1}).addTo(map);
+  for (let x = 0; x <= W; x += 10000) L.polyline([[0, x], [H, x]], {color: "#1d4256", weight: 1}).addTo(map);
+  for (let y = 0; y <= H; y += 10000) L.polyline([[y, 0], [y, W]], {color: "#1d4256", weight: 1}).addTo(map);
+  map.fitBounds(bounds);
+  map.on("click", e => {
+    $("coords").textContent = "x " + Math.round(e.latlng.lng) + ", y " + Math.round(H - e.latlng.lat);
+    if (marker) marker.remove();
+    marker = L.circleMarker(e.latlng, {radius: 6, color: "#c9a24b", fillOpacity: .9}).addTo(map);
+  });
+}
+
+// ---- Проверка для гостя (на экране входа): данные должны быть закрыты
+async function guestCheck() {
+  let open = 0;
   for (const n of names) {
+    const { data, error } = await db.from(n).select("*").limit(1);
+    if (!error && data.length) open++;
+  }
+  $("guestCheck").textContent = open ? "Внимание: гость видит данные (" + open + ")" : "Защита: гостю данные закрыты";
+}
+
+// ---- Экраны
+function showLogin() {
+  $("app").hidden = true; $("login").hidden = false;
+  $("pass").value = ""; $("loginBtn").disabled = false;
+  guestCheck();
+}
+async function showApp(session) {
+  $("login").hidden = true; $("app").hidden = false;
+  initMap();
+  const { data } = await db.from("profiles").select("display_name,role").eq("id", session.user.id).maybeSingle();
+  const role = data && data.role === "master" ? "Мастер" : "Игрок";
+  $("who").textContent = ((data && data.display_name) || session.user.email) + " · " + role;
+  const tbl = $("tables"); tbl.innerHTML = "";
+  for (const n of names) {
+    const { count, error } = await db.from(n).select("*", {count: "exact"}).limit(0);
     const tr = document.createElement("tr");
-    const { count, error } = await db.from(n).select("*", {count: "exact", head: true});
-    if (!error) okCount++;
-    tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : (count === null ? "доступна" : count + " зап.")) + "</td>";
+    tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  status.textContent = okCount ? "База на связи: " + okCount + " из " + names.length + " таблиц" : "Нет связи с таблицами";
-  status.className = okCount ? "ok" : "bad";
-})();
+}
+
+// ---- Вход и выход
+$("loginForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("loginBtn").disabled = true; $("loginMsg").textContent = "";
+  const { error } = await db.auth.signInWithPassword({email: $("email").value.trim(), password: $("pass").value});
+  if (error) {
+    $("loginMsg").textContent = error.status === 400 ? "Неверная почта или пароль." : "Не получилось войти. Попробуйте ещё раз.";
+    $("loginBtn").disabled = false;
+  }
+});
+$("logout").addEventListener("click", () => db.auth.signOut());
+
+db.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_OUT" || !session) setTimeout(showLogin, 0);
+  else if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setTimeout(() => showApp(session), 0);
+});
 </script>
 </body>
 </html>
