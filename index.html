@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline'; style-src https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <title>ДнД-проект: стол мастера</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
@@ -76,7 +78,7 @@ const status = document.getElementById("status"), tbl = document.getElementById(
     const tr = document.createElement("tr");
     const { count, error } = await db.from(n).select("*", {count: "exact", head: true});
     if (!error) okCount++;
-    tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
+    tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : (count === null ? "доступна" : count + " зап.")) + "</td>";
     tbl.appendChild(tr);
   }
   status.textContent = okCount ? "База на связи: " + okCount + " из " + names.length + " таблиц" : "Нет связи с таблицами";
