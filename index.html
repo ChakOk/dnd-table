@@ -78,6 +78,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 #mapTools .row select{flex:1;min-width:0;margin:0}
 .tk{width:44px;height:44px;border-radius:50%;border:3px solid var(--brass);background:var(--sea);color:var(--foam);font:700 18px/38px Georgia,serif;text-align:center;overflow:hidden;box-shadow:0 2px 6px #000a}
 .tk img{width:100%;height:100%;object-fit:cover;display:block}
+.cm{width:14px;height:14px;border-radius:50%;background:#c0392b;border:2px solid #fff;box-shadow:0 1px 4px #000a}.cm.start{width:18px;height:18px;background:var(--brass)}
 .tk.party{border-radius:8px;border-color:var(--ok)}.tk.npc{border-color:var(--bad)}
 .tkl{background:var(--deep);color:var(--foam);border:1px solid var(--line);font:600 12px system-ui,sans-serif;padding:1px 6px;box-shadow:none}
 @media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
@@ -113,6 +114,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <div id="mapTools" hidden>
         <div class="row"><select id="tokChar" aria-label="Персонаж"></select><button id="addTok" type="button">Поставить персонажа</button></div>
         <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
+        <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
         <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
       </div>
       <p id="mapMsg" class="msg" role="status"></p>
@@ -163,13 +165,14 @@ const $ = id => document.getElementById(id);
 const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
-let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0;
+let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [];
 const mmsg = (t, ok) => { $("mapMsg").textContent = t; $("mapMsg").className = "msg" + (ok ? " good" : ""); };
 const ll = (x, y) => [dims.h - y, x];
 
 function clearScene() {
   if (bg) { bg.remove(); bg = null; }
   Object.values(tokM).forEach(m => m.remove()); tokM = {};
+  cityM.forEach(m => m.remove()); cityM = [];
   fxL.forEach(l => l.remove()); fxL = []; toks = []; effs = []; scn = null; dims = null;
 }
 
@@ -212,6 +215,26 @@ async function loadSceneObjects() {
   if (!scn || scn.id !== sid) return;
   toks = t.data || []; effs = e.data || [];
   drawEffects(); drawTokens();
+  if (scn.kind === "world" && !cityM.length) {
+    const c = await db.from("map_points").select("id,name,continent,x,y,note").eq("kind", "city");
+    if (scn && scn.id === sid) drawCities(c.data || []);
+  }
+}
+
+// Метки городов: координаты в пикселях холста Figma 150 000 × 100 000, пересчитываются под размер изображения сцены
+function drawCities(list) {
+  cityM.forEach(m => m.remove()); cityM = [];
+  list.forEach(c => {
+    const start = c.note === "Начальный город кампании";
+    const icon = L.divIcon({html: el("div", "cm" + (start ? " start" : "")), className: "", iconSize: start ? [18, 18] : [14, 14], iconAnchor: start ? [9, 9] : [7, 7]});
+    const m = L.marker(ll(c.x * dims.w / 150000, c.y * dims.h / 100000), {icon, keyboard: false, zIndexOffset: -100, bubblingMouseEvents: true}).addTo(map);
+    m.bindTooltip(c.name, {direction: "top", offset: [0, -8]});
+    const box = el("div"); box.appendChild(el("b", "", c.name)); box.appendChild(el("div", "", c.continent || ""));
+    if (c.note) box.appendChild(el("div", "", c.note));
+    m.bindPopup(box);
+    m.on("click", () => { if (fxMode || rmMode) m.closePopup(); });
+    cityM.push(m);
+  });
 }
 
 function drawEffects() {
@@ -235,6 +258,12 @@ function drawTokens() {
     const can = me.master || (t.owner && t.owner === me.id);
     m = L.marker(ll(t.x, t.y), {draggable: !!can, icon: tokIcon(t), keyboard: false}).addTo(map);
     const lab = el("span", "", t.label); m.bindTooltip(lab, {permanent: true, direction: "bottom", offset: [0, 22], className: "tkl"});
+    m.on("click", async () => {
+      if (!rmMode || !me.master) return;
+      if (!confirm("Убрать токен «" + t.label + "»?")) return;
+      const { error } = await db.from("tokens").delete().eq("id", t.id);
+      if (error) mmsg("Не удалось убрать токен."); else loadSceneObjects();
+    });
     m.on("dragstart", () => { dragging = true; });
     m.on("dragend", async () => {
       const p = m.getLatLng(), x = Math.round(p.lng), y = Math.round(dims.h - p.lat);
@@ -258,7 +287,19 @@ async function addToken(row) {
 }
 $("addTok").onclick = () => { const c = chars.find(c => c.id === $("tokChar").value); if (c) addToken({label: c.name, kind: "pc", character_id: c.id, owner: c.owner}); };
 $("addParty").onclick = () => addToken({label: "Партия", kind: "party"});
-$("fxBtn").onclick = () => { fxMode = !fxMode; $("fxBtn").setAttribute("aria-pressed", fxMode); if (map) map.getContainer().style.cursor = fxMode ? "crosshair" : ""; };
+function setMode(m) {
+  fxMode = m === "fx"; rmMode = m === "rm";
+  $("fxBtn").setAttribute("aria-pressed", fxMode); $("rmTok").setAttribute("aria-pressed", rmMode);
+  if (map) map.getContainer().style.cursor = fxMode ? "crosshair" : rmMode ? "pointer" : "";
+  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : "");
+}
+$("fxBtn").onclick = () => setMode(fxMode ? "" : "fx");
+$("rmTok").onclick = () => setMode(rmMode ? "" : "rm");
+$("rmAll").onclick = async () => {
+  if (!scn || !confirm("Убрать ВСЕ токены на этой сцене? Персонажи в базе останутся.")) return;
+  const { error } = await db.from("tokens").delete().eq("scene_id", scn.id);
+  if (error) mmsg("Не удалось убрать."); else loadSceneObjects();
+};
 $("fxClear").onclick = async () => {
   if (!scn || !confirm("Убрать все следы эффектов на этой сцене?")) return;
   const { error } = await db.from("effects").delete().eq("scene_id", scn.id);
