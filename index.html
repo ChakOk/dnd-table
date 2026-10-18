@@ -55,6 +55,17 @@ textarea{min-height:110px;resize:vertical}
 .row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem}
 .danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
 .good{color:var(--ok)}
+.prog{max-width:460px;margin-top:1.5rem;border-top:1px solid var(--line);padding-top:1rem}
+.prog h3{font:600 .95rem Georgia,serif;margin:1.1rem 0 .4rem;color:var(--brass)}
+.prow{display:flex;align-items:center;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--line)}
+.prow span:first-child{flex:1}
+.prow button{padding:.2rem .7rem}
+.prow b{min-width:1.6rem;text-align:center}
+.ms{color:var(--muted);font-size:14px;margin:.2rem 0}
+.ms.ok{color:var(--ok)}
+.ab{padding:.4rem 0;border-bottom:1px solid var(--line)}
+.ab small{display:block;color:var(--muted)}
+.num{width:4.2rem;display:inline-block;margin:0 .3rem}
 @media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
@@ -103,6 +114,7 @@ textarea{min-height:110px;resize:vertical}
         <div class="row"><button id="saveBtn" type="submit">Сохранить</button><button id="delBtn" class="danger" type="button" hidden>Удалить</button></div>
         <p id="charMsg" class="msg" role="status"></p>
       </form>
+      <div id="progress" class="prog" hidden></div>
     </div>
   </div>
 </section>
@@ -190,6 +202,7 @@ async function loadChars() {
     const r = await db.storage.from("photos").createSignedUrls(paths, 3600);
     (r.data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; });
   }
+  await loadProgress();
   if (!sel && !me.master && chars.length) sel = chars[0].id;
   renderChars();
 }
@@ -225,6 +238,89 @@ function renderChars() {
   const pv = $("cPreview"); const has = cur && cur.photo_url && urls[cur.photo_url];
   pv.hidden = !has; if (has) pv.src = urls[cur.photo_url];
   $("delBtn").hidden = !(me.master && cur);
+  renderProgress(cur);
+}
+
+// ---- Прогресс: шкалы практики, вехи, открытые способности
+const SCALES = {
+  warrior: [["training","Тренировки"],["battles","Бои"],["weapons","Оружие"]],
+  wizard: [["spells","Заклинания"],["places","Места силы"],["knowledge","Знания"]],
+  rogue: [["deeds","Дела"],["connections","Связи"],["risk","Риск"]],
+  cleric_druid: [["rites","Обряды"],["altars","Алтари"],["help","Помощь"]]};
+let prog = {}, ms = [{k:1,n:2},{k:2,n:4},{k:3,n:6}]; // веха: на k шкалах по n действий
+const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x !== undefined) e.textContent = x; return e; };
+
+async function loadProgress() {
+  const r = await db.from("character_progress").select("character_id,practice,abilities");
+  prog = {}; (r.data || []).forEach(p => prog[p.character_id] = p);
+  const st = await db.from("settings").select("value").eq("key", "milestones").maybeSingle();
+  if (st.data && Array.isArray(st.data.value) && st.data.value.length === 3) ms = st.data.value;
+}
+const getP = id => prog[id] || (prog[id] = {character_id: id, practice: {}, abilities: []});
+const reached = (cls, p) => ms.map(m => SCALES[cls].filter(([k]) => (p.practice[k] || 0) >= m.n).length >= m.k);
+
+async function saveProg(p) {
+  const { error } = await db.from("character_progress").upsert({character_id: p.character_id, practice: p.practice, abilities: p.abilities}, {onConflict: "character_id"});
+  if (error) { msg("Не удалось сохранить прогресс."); await loadProgress(); return false; }
+  return true;
+}
+
+function renderProgress(cur) {
+  const box = $("progress"); box.innerHTML = ""; box.hidden = !cur; if (!cur) return;
+  const p = getP(cur.id), M = me.master;
+  box.appendChild(el("h2", "", "Прогресс"));
+  SCALES[cur.class].forEach(([key, label]) => {
+    const row = el("div", "prow"); row.appendChild(el("span", "", label));
+    const val = el("b", "", String(p.practice[key] || 0));
+    if (M) {
+      [["−", -1], ["+", 1]].forEach(([t, d], i) => {
+        const b = el("button", "", t); b.type = "button"; b.setAttribute("aria-label", (d > 0 ? "Добавить: " : "Убрать: ") + label);
+        b.onclick = async () => {
+          const before = reached(cur.class, p).filter(Boolean).length;
+          p.practice = {...p.practice, [key]: Math.max(0, (p.practice[key] || 0) + d)};
+          if (await saveProg(p)) {
+            const after = reached(cur.class, p).filter(Boolean).length;
+            renderProgress(cur);
+            if (after > before) msg("Достигнута веха " + after + ": можно открыть способность.", true);
+          }
+        };
+        row.appendChild(b); if (i === 0) row.appendChild(val);
+      });
+    } else row.appendChild(val);
+    box.appendChild(row);
+  });
+  box.appendChild(el("h3", "", "Вехи"));
+  const r = reached(cur.class, p);
+  ms.forEach((m, i) => box.appendChild(el("p", "ms" + (r[i] ? " ok" : ""), "Веха " + (i + 1) + ": на " + m.k + " шк. по " + m.n + " действий, " + (r[i] ? "достигнута" : "пока нет"))));
+  box.appendChild(el("h3", "", "Открытые способности"));
+  if (!p.abilities.length) box.appendChild(el("p", "ms", "Пока нет."));
+  p.abilities.forEach(a => {
+    const d = el("div", "ab", a.name); if (a.text) d.appendChild(el("small", "", a.text));
+    if (M) { const b = el("button", "danger", "Убрать"); b.type = "button"; b.onclick = async () => { p.abilities = p.abilities.filter(x => x.id !== a.id); if (await saveProg(p)) renderProgress(cur); }; d.appendChild(b); }
+    box.appendChild(d);
+  });
+  if (!M) return;
+  const n = el("input"); n.placeholder = "Название способности"; n.maxLength = 60;
+  const t = el("input"); t.placeholder = "Описание (необязательно)"; t.maxLength = 300;
+  const add = el("button", "", "Открыть способность"); add.type = "button";
+  add.onclick = async () => {
+    if (!n.value.trim()) return;
+    p.abilities = [...p.abilities, {id: crypto.randomUUID(), name: n.value.trim(), text: t.value.trim()}];
+    if (await saveProg(p)) renderProgress(cur);
+  };
+  const f = el("div", "row"); f.append(n, t, add); box.appendChild(f);
+  box.appendChild(el("h3", "", "Пороги вех (темп кампании)"));
+  const inputs = ms.map((m, i) => {
+    const k = el("input", "num"), c = el("input", "num"); k.type = c.type = "number"; k.min = c.min = 1; k.value = m.k; c.value = m.n;
+    const line = el("p", "ms", "Веха " + (i + 1) + ": шкал "); line.append(k, " по ", c, " действий"); box.appendChild(line); return [k, c];
+  });
+  const sv = el("button", "", "Сохранить пороги"); sv.type = "button";
+  sv.onclick = async () => {
+    const v = inputs.map(([k, c]) => ({k: Math.min(3, Math.max(1, +k.value || 1)), n: Math.max(1, +c.value || 1)}));
+    const { error } = await db.from("settings").upsert({key: "milestones", value: v}, {onConflict: "key"});
+    if (error) msg("Не удалось сохранить пороги."); else { ms = v; renderProgress(cur); msg("Пороги сохранены.", true); }
+  };
+  box.appendChild(sv);
 }
 
 async function shrink(file) {
