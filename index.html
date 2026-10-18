@@ -114,6 +114,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <div id="mapTools" hidden>
         <div class="row"><select id="tokChar" aria-label="Персонаж"></select><button id="addTok" type="button">Поставить персонажа</button></div>
         <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
+        <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
         <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
         <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
       </div>
@@ -180,6 +181,7 @@ async function openScene() {
   const gen = ++mapGen;
   const cur = scenes.find(s => s.is_current);
   $("mapTools").hidden = !me.master;
+  $("toWorld").hidden = !(me.master && cur && cur.kind !== "world");
   if (!map) {
     map = L.map("map", {crs: L.CRS.Simple, minZoom: -6, maxZoom: 2, zoomSnap: .25, attributionControl: false});
     map.on("click", onMapClick);
@@ -221,6 +223,15 @@ async function loadSceneObjects() {
   }
 }
 
+const norm = t => (t || "").toLowerCase().replace(/ё/g, "е").trim();
+const locFor = c => scenes.find(s => s.kind === "location" && norm(s.name).includes(norm(c.name)));
+$("toWorld").onclick = async () => {
+  const w = scenes.find(s => s.kind === "world");
+  if (!w) { mmsg("Сцена типа «Мир» не найдена."); return; }
+  const { error } = await db.rpc("set_current_scene", {p_id: w.id});
+  if (error) mmsg("Не удалось вернуться на карту мира."); else loadScenes();
+};
+
 // Метки городов: координаты в пикселях холста Figma 150 000 × 100 000, пересчитываются под размер изображения сцены
 function drawCities(list) {
   cityM.forEach(m => m.remove()); cityM = [];
@@ -229,9 +240,24 @@ function drawCities(list) {
     const icon = L.divIcon({html: el("div", "cm" + (start ? " start" : "")), className: "", iconSize: start ? [18, 18] : [14, 14], iconAnchor: start ? [9, 9] : [7, 7]});
     const m = L.marker(ll(c.x * dims.w / 150000, c.y * dims.h / 100000), {icon, keyboard: false, zIndexOffset: -100, bubblingMouseEvents: true}).addTo(map);
     m.bindTooltip(c.name, {direction: "top", offset: [0, -8]});
-    const box = el("div"); box.appendChild(el("b", "", c.name)); box.appendChild(el("div", "", c.continent || ""));
-    if (c.note) box.appendChild(el("div", "", c.note));
-    m.bindPopup(box);
+    m.bindPopup(() => {
+      const box = el("div"); box.appendChild(el("b", "", c.name)); box.appendChild(el("div", "", c.continent || ""));
+      if (c.note) box.appendChild(el("div", "", c.note));
+      if (me.master) {
+        const s = locFor(c);
+        if (!s) box.appendChild(el("small", "", "Локации города пока нет: нужна сцена типа «Локация» с именем города в названии."));
+        else if (!s.image_url) box.appendChild(el("small", "", "У локации «" + s.name + "» нет фона."));
+        else {
+          const b = el("button", "", "Открыть локацию для партии"); b.type = "button";
+          b.onclick = async () => {
+            const { error } = await db.rpc("set_current_scene", {p_id: s.id});
+            if (error) mmsg("Не удалось открыть локацию."); else { m.closePopup(); loadScenes(); }
+          };
+          box.appendChild(b);
+        }
+      }
+      return box;
+    });
     m.on("click", () => { if (fxMode || rmMode) m.closePopup(); });
     cityM.push(m);
   });
