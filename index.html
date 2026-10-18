@@ -37,6 +37,25 @@ table{width:100%;border-collapse:collapse;margin-bottom:1rem}
 td{padding:.25rem 0;border-bottom:1px solid var(--line)}
 td:last-child{text-align:right}
 .ok{color:var(--ok)}.bad{color:var(--bad)}
+.tabs{display:flex;gap:.4rem}
+.tab{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.tab[aria-selected="true"]{background:var(--brass);color:#1a1405;border-color:var(--brass)}
+#charsView{flex:1;display:grid;grid-template-columns:300px 1fr;min-height:0;font-family:system-ui,sans-serif}
+#charList{padding:1rem;overflow:auto;background:var(--sea);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:.5rem}
+.ch{display:flex;gap:.7rem;align-items:center;text-align:left;width:100%;background:var(--deep);color:var(--foam);border:1px solid var(--line);padding:.5rem}
+.ch[aria-current="true"]{border-color:var(--brass)}
+.av{width:48px;height:48px;border-radius:50%;background:var(--line);object-fit:cover;flex:none}
+.ch small{display:block;color:var(--muted);font-weight:400}
+#charEdit{padding:1.2rem;overflow:auto}
+#charEdit form{max-width:460px}
+#charEdit h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 1rem}
+textarea,select{display:block;width:100%;margin-top:.25rem;padding:.55rem .6rem;border-radius:4px;border:1px solid var(--line);background:var(--deep);color:var(--foam);font:16px system-ui,sans-serif}
+textarea{min-height:110px;resize:vertical}
+.big{width:96px;height:96px;display:block;margin:.4rem 0}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.4rem}
+.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+.good{color:var(--ok)}
+@media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
 </style>
 </head>
@@ -55,10 +74,11 @@ td:last-child{text-align:right}
 
 <section id="app" hidden>
   <header>
-    <h1>ДнД-проект: стол мастера</h1>
+    <h1>ДнД-проект</h1>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button></div>
     <div><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
-  <main>
+  <main id="mapView" hidden>
     <div id="map" aria-label="Карта мира"></div>
     <aside>
       <h2>Таблицы базы</h2>
@@ -68,6 +88,23 @@ td:last-child{text-align:right}
       <p id="coords">нет выбора</p>
     </aside>
   </main>
+  <div id="charsView">
+    <div id="charList"></div>
+    <div id="charEdit">
+      <form id="charForm">
+        <h2 id="charTitle">Новый персонаж</h2>
+        <label>Имя<input id="cName" maxlength="40" required></label>
+        <label>Класс
+          <select id="cClass"><option value="warrior">Воин</option><option value="wizard">Волшебник</option><option value="rogue">Плут</option><option value="cleric_druid">Жрец или друид</option></select>
+        </label>
+        <label>Заметки<textarea id="cNotes" maxlength="2000"></textarea></label>
+        <label>Фото (будет сжато до 512 пикселей)<input id="cPhoto" type="file" accept="image/jpeg,image/png,image/webp"></label>
+        <img id="cPreview" class="av big" alt="" hidden>
+        <div class="row"><button id="saveBtn" type="submit">Сохранить</button><button id="delBtn" class="danger" type="button" hidden>Удалить</button></div>
+        <p id="charMsg" class="msg" role="status"></p>
+      </form>
+    </div>
+  </div>
 </section>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -108,15 +145,16 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  $("app").hidden = true; $("login").hidden = false;
+  me = null; $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
 }
 async function showApp(session) {
+  if (me && me.id === session.user.id) return;
   $("login").hidden = true; $("app").hidden = false;
-  initMap();
   const { data } = await db.from("profiles").select("display_name,role").eq("id", session.user.id).maybeSingle();
-  const role = data && data.role === "master" ? "Мастер" : "Игрок";
+  me = {id: session.user.id, master: !!(data && data.role === "master")};
+  const role = me.master ? "Мастер" : "Игрок";
   $("who").textContent = ((data && data.display_name) || session.user.email) + " · " + role;
   const tbl = $("tables"); tbl.innerHTML = "";
   for (const n of names) {
@@ -125,7 +163,109 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
+  sel = null; tab("chars"); loadChars();
 }
+
+// ---- Вкладки
+function tab(name) {
+  const c = name === "chars";
+  $("charsView").hidden = !c; $("mapView").hidden = c;
+  $("tabChars").setAttribute("aria-selected", c); $("tabMap").setAttribute("aria-selected", !c);
+  if (!c) initMap();
+}
+$("tabChars").onclick = () => tab("chars");
+$("tabMap").onclick = () => tab("map");
+
+// ---- Персонажи
+const CLASSES = {warrior: "Воин", wizard: "Волшебник", rogue: "Плут", cleric_druid: "Жрец или друид"};
+let me = null, chars = [], sel = null, urls = {}, photoBlob = null;
+const msg = (t, ok) => { $("charMsg").textContent = t; $("charMsg").className = "msg" + (ok ? " good" : ""); };
+
+async function loadChars() {
+  const { data, error } = await db.from("characters").select("id,owner,name,class,photo_url,notes,profiles(display_name)").order("created_at");
+  if (error) { msg("Не удалось загрузить персонажей."); return; }
+  chars = data; urls = {};
+  const paths = chars.map(c => c.photo_url).filter(Boolean);
+  if (paths.length) {
+    const r = await db.storage.from("photos").createSignedUrls(paths, 3600);
+    (r.data || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; });
+  }
+  if (!sel && !me.master && chars.length) sel = chars[0].id;
+  renderChars();
+}
+
+function avatar(c) {
+  const el = document.createElement("img");
+  el.className = "av"; el.alt = "";
+  if (c && c.photo_url && urls[c.photo_url]) el.src = urls[c.photo_url]; else el.removeAttribute("src");
+  return el;
+}
+
+function renderChars() {
+  const list = $("charList"); list.innerHTML = "";
+  if (me.master || !chars.length) {
+    const b = document.createElement("button"); b.type = "button";
+    b.textContent = "Новый персонаж"; b.onclick = () => { sel = null; renderChars(); };
+    list.appendChild(b);
+  }
+  chars.forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "ch";
+    if (c.id === sel) b.setAttribute("aria-current", "true");
+    const t = document.createElement("span"); t.textContent = c.name;
+    const s = document.createElement("small");
+    s.textContent = CLASSES[c.class] + (me.master && c.profiles ? " · " + c.profiles.display_name : "");
+    t.appendChild(s);
+    b.append(avatar(c), t); b.onclick = () => { sel = c.id; renderChars(); };
+    list.appendChild(b);
+  });
+  const cur = chars.find(c => c.id === sel);
+  $("charTitle").textContent = cur ? "Персонаж: " + cur.name : "Новый персонаж";
+  $("cName").value = cur ? cur.name : ""; $("cClass").value = cur ? cur.class : "warrior";
+  $("cNotes").value = cur ? cur.notes : ""; $("cPhoto").value = ""; photoBlob = null;
+  const pv = $("cPreview"); const has = cur && cur.photo_url && urls[cur.photo_url];
+  pv.hidden = !has; if (has) pv.src = urls[cur.photo_url];
+  $("delBtn").hidden = !(me.master && cur);
+}
+
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 512 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, "image/jpeg", .85));
+}
+$("cPhoto").addEventListener("change", async () => {
+  const f = $("cPhoto").files[0]; if (!f) return;
+  try { photoBlob = await shrink(f); $("cPreview").src = URL.createObjectURL(photoBlob); $("cPreview").hidden = false; }
+  catch (e) { photoBlob = null; msg("Не получилось прочитать картинку."); }
+});
+
+$("charForm").addEventListener("submit", async e => {
+  e.preventDefault(); msg("");
+  const name = $("cName").value.trim(); if (!name) { msg("Укажите имя."); return; }
+  $("saveBtn").disabled = true;
+  const fields = {name, class: $("cClass").value, notes: $("cNotes").value};
+  const cur = chars.find(c => c.id === sel);
+  const q = cur ? db.from("characters").update(fields).eq("id", cur.id) : db.from("characters").insert({...fields, owner: me.id});
+  const { data: row, error } = await q.select("id,owner,photo_url").single();
+  if (error) { msg("Не удалось сохранить."); $("saveBtn").disabled = false; return; }
+  let note = "Сохранено.";
+  if (photoBlob) {
+    const path = row.owner + "/" + row.id + "-" + Date.now() + ".jpg";
+    const up = await db.storage.from("photos").upload(path, photoBlob, {contentType: "image/jpeg"});
+    if (up.error) note = "Сохранено, но фото не загрузилось.";
+    else { await db.from("characters").update({photo_url: path}).eq("id", row.id); if (row.photo_url) await db.storage.from("photos").remove([row.photo_url]); }
+  }
+  sel = row.id; await loadChars(); msg(note, note === "Сохранено."); $("saveBtn").disabled = false;
+});
+
+$("delBtn").addEventListener("click", async () => {
+  const cur = chars.find(c => c.id === sel);
+  if (!cur || !confirm("Удалить персонажа «" + cur.name + "»? Это нельзя отменить.")) return;
+  const { error } = await db.from("characters").delete().eq("id", cur.id);
+  if (error) { msg("Не удалось удалить."); return; }
+  if (cur.photo_url) await db.storage.from("photos").remove([cur.photo_url]);
+  sel = null; await loadChars(); msg("Удалено.", true);
+});
 
 // ---- Вход и выход
 $("loginForm").addEventListener("submit", async e => {
