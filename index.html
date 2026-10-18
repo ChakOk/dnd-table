@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ДнД-проект: стол мастера</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--sea:#0f2a3a;--deep:#081822;--brass:#c9a24b;--foam:#e8eef0;--muted:#8aa3ae;--ok:#6fbf8b;--bad:#e07a6a}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--deep);color:var(--foam);font:16px/1.5 Georgia,"Times New Roman",serif;display:flex;flex-direction:column}
+header{display:flex;gap:1rem;align-items:center;justify-content:space-between;padding:.7rem 1rem;background:var(--sea);border-bottom:2px solid var(--brass)}
+h1{font-size:1.15rem;margin:0;letter-spacing:.02em}
+#status{font:14px system-ui,sans-serif;color:var(--muted)}
+#status.ok{color:var(--ok)}#status.bad{color:var(--bad)}
+main{flex:1;display:grid;grid-template-columns:1fr 300px;min-height:0}
+#map{background:#0b2231}
+aside{padding:1rem;overflow:auto;background:var(--sea);border-left:1px solid #1d4256;font:14px/1.5 system-ui,sans-serif}
+aside h2{font:600 1rem Georgia,serif;margin:.2rem 0 .6rem;color:var(--brass)}
+table{width:100%;border-collapse:collapse;margin-bottom:1rem}
+td{padding:.25rem 0;border-bottom:1px solid #1d4256}
+td:last-child{text-align:right}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+#coords{font-variant-numeric:tabular-nums;color:var(--foam)}
+button{background:var(--brass);color:#1a1405;border:0;border-radius:4px;padding:.45rem .8rem;font:600 14px system-ui,sans-serif;cursor:pointer}
+button:focus-visible{outline:2px solid var(--foam);outline-offset:2px}
+@media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid #1d4256}}
+</style>
+</head>
+<body>
+<header><h1>ДнД-проект: стол мастера</h1><span id="status">Подключаюсь к базе…</span></header>
+<main>
+  <div id="map" aria-label="Карта мира"></div>
+  <aside>
+    <h2>Таблицы базы</h2>
+    <table id="tables"></table>
+    <h2>Точка на карте</h2>
+    <p>Нажмите на карту: координаты холста Figma появятся здесь. По ним позже привяжем 26 городов.</p>
+    <p id="coords">нет выбора</p>
+    <button id="copy" type="button">Скопировать координаты</button>
+  </aside>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
+const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, защищён правилами базы
+
+// Карта: холст Figma 150000 x 100000 px. Пока без плиток: сетка и клик.
+const W = 150000, H = 100000;
+const map = L.map("map", {crs: L.CRS.Simple, minZoom: -9, maxZoom: 0, zoomSnap: .25, attributionControl: false});
+const bounds = [[0, 0], [H, W]];
+L.rectangle(bounds, {color: "#c9a24b", weight: 2, fillColor: "#123246", fillOpacity: 1}).addTo(map);
+for (let x = 0; x <= W; x += 10000) L.polyline([[0, x], [H, x]], {color: "#1d4256", weight: 1}).addTo(map);
+for (let y = 0; y <= H; y += 10000) L.polyline([[y, 0], [y, W]], {color: "#1d4256", weight: 1}).addTo(map);
+map.fitBounds(bounds);
+
+let marker = null, last = "";
+map.on("click", e => {
+  const x = Math.round(e.latlng.lng), y = Math.round(H - e.latlng.lat);
+  last = x + ", " + y;
+  document.getElementById("coords").textContent = "x " + x + ", y " + y;
+  if (marker) marker.remove();
+  marker = L.circleMarker(e.latlng, {radius: 6, color: "#c9a24b", fillOpacity: .9}).addTo(map);
+});
+document.getElementById("copy").onclick = () => { if (last) navigator.clipboard.writeText(last); };
+
+// База: проверка связи и таблиц
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const names = ["campaigns","sessions","characters","map_objects","tokens","effects","sounds","glossary","world_notes"];
+const status = document.getElementById("status"), tbl = document.getElementById("tables");
+(async () => {
+  let okCount = 0;
+  for (const n of names) {
+    const tr = document.createElement("tr");
+    const { count, error } = await db.from(n).select("*", {count: "exact", head: true});
+    if (!error) okCount++;
+    tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
+    tbl.appendChild(tr);
+  }
+  status.textContent = okCount ? "База на связи: " + okCount + " из " + names.length + " таблиц" : "Нет связи с таблицами";
+  status.className = okCount ? "ok" : "bad";
+})();
+</script>
+</body>
+</html>
