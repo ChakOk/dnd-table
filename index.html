@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline'; style-src https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline'; style-src https://cdnjs.cloudflare.com 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; media-src https://*.supabase.co; connect-src https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <title>ДнД-проект: стол мастера</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
@@ -71,6 +71,7 @@ textarea{min-height:110px;resize:vertical}
 .scn h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 .6rem}
 .sc{display:flex;gap:.6rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
 .sc span{flex:1}.sc small{display:block;color:var(--muted)}
+.snd{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.4rem 0;border-bottom:1px solid var(--line)}.snd span{flex:1;min-width:8rem}.snd input[type=range]{width:90px;display:inline-block;margin:0;padding:0}
 .tag{color:var(--ok);font-size:13px}
 .upl{display:inline-block;margin:0;background:var(--brass);color:#1a1405;border-radius:4px;padding:.55rem .9rem;font:600 14px system-ui,sans-serif;cursor:pointer}
 .upl:focus-within{outline:2px solid var(--foam)}
@@ -101,8 +102,8 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button></div>
-    <div><span id="who"></span><button id="logout" type="button">Выйти</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button></div>
+    <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <main id="mapView" hidden>
     <div id="map" aria-label="Карта мира"></div>
@@ -116,11 +117,28 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
         <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
         <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
-        <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
+        <div id="board" class="row" aria-label="Звуки"></div>
+      <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
       </div>
       <p id="mapMsg" class="msg" role="status"></p>
     </aside>
   </main>
+  <div id="soundsView" hidden>
+    <div class="scn">
+      <h2>Звуки</h2>
+      <form id="soundForm">
+        <label>Название<input id="snName" maxlength="60" required></label>
+        <label>Тип
+          <select id="snKind"><option value="oneshot">Разовый (выстрел, каст)</option><option value="loop">Фоновый (толпа, лес)</option></select>
+        </label>
+        <label>Файл (mp3, ogg, wav; до 5 МБ)<input id="snFile" type="file" accept="audio/*" required></label>
+        <button type="submit">Загрузить</button>
+      </form>
+      <label>Звук огненного шара<select id="fxSound"></select></label>
+      <div id="soundList"></div>
+      <p id="snMsg" class="msg" role="status"></p>
+    </div>
+  </div>
   <div id="scenesView" hidden>
     <div class="scn">
       <h2>Сцены</h2>
@@ -344,7 +362,7 @@ async function onMapClick(e) {
   if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
   const radius = Math.round(Math.max(dims.w, dims.h) / 40);
   const { error } = await db.from("effects").insert({scene_id: scn.id, kind: "scorched", x, y, radius});
-  if (error) mmsg("Не удалось поставить эффект."); else { boom(); loadSceneObjects(); }
+  if (error) mmsg("Не удалось поставить эффект."); else { fxSound(); loadSceneObjects(); }
 }
 
 // ---- Загрузка фона сцены (мастер)
@@ -374,7 +392,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -393,15 +411,16 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); loadChars(); loadScenes(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); subscribeScenes();
 }
 
 // ---- Вкладки
-const VIEWS = {chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const VIEWS = {sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
   for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
   if (name === "map") openScene();
   if (name === "scenes") loadScenes();
+  if (name === "sounds") renderSounds();
 }
 $("tabChars").onclick = () => tab("chars");
 $("tabScenes").onclick = () => tab("scenes");
@@ -636,8 +655,116 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "scenes"}, () => loadScenes())
     .on("postgres_changes", {event: "*", schema: "public", table: "tokens"}, () => { if (!dragging) loadSceneObjects(); })
     .on("postgres_changes", {event: "*", schema: "public", table: "effects"}, () => loadSceneObjects())
+    .on("postgres_changes", {event: "*", schema: "public", table: "sounds"}, () => loadSounds())
     .subscribe();
 }
+
+// ---- Звуки: файлы в закрытом хранилище, состояние в таблице sounds, все клиенты слушают изменения в реальном времени
+let sounds = [], audioOn = false, audioEls = {}, sndExp = {}, lastPlayed = {}, fxSoundId = null;
+const snmsg = (t, ok) => { $("snMsg").textContent = t; $("snMsg").className = "msg" + (ok ? " good" : ""); };
+
+async function getAudio(s) {
+  const a0 = audioEls[s.id];
+  if (a0 && (sndExp[s.id] > Date.now() || !a0.paused)) return a0;
+  const r = await db.storage.from("sounds").createSignedUrl(s.file_path, 3600);
+  if (r.error) return null;
+  const a = a0 || new Audio(); a.src = r.data.signedUrl; a.preload = "auto";
+  audioEls[s.id] = a; sndExp[s.id] = Date.now() + 3300000; return a;
+}
+async function playSound(s) {
+  if (!audioOn) return;
+  const a = await getAudio(s); if (!a) return;
+  a.loop = s.kind === "loop"; a.volume = Math.min(1, s.volume * $("vol").value / 100);
+  if (s.kind === "oneshot") a.currentTime = 0;
+  a.play().catch(() => {});
+}
+function syncLoops() {
+  sounds.filter(s => s.kind === "loop").forEach(s => {
+    if (s.playing && audioOn) playSound(s); else if (audioEls[s.id]) audioEls[s.id].pause();
+  });
+}
+function stopAudio() {
+  audioOn = false; $("audioBtn").setAttribute("aria-pressed", "false"); $("audioBtn").textContent = "Включить звук";
+  Object.values(audioEls).forEach(a => a.pause());
+}
+$("audioBtn").onclick = () => {
+  if (audioOn) { stopAudio(); return; }
+  audioOn = true; $("audioBtn").setAttribute("aria-pressed", "true"); $("audioBtn").textContent = "Звук включён"; syncLoops();
+};
+$("vol").oninput = syncLoops;
+
+async function loadSounds() {
+  const { data, error } = await db.from("sounds").select("id,name,kind,file_path,volume,playing,last_played").order("created_at");
+  if (error) { if (me && me.master) snmsg("Звуки недоступны. Мастеру: выполните supabase_sounds.sql."); return; }
+  sounds = data;
+  sounds.forEach(s => {
+    if (s.kind === "oneshot" && s.id in lastPlayed && s.last_played && s.last_played !== lastPlayed[s.id]) playSound(s);
+    lastPlayed[s.id] = s.last_played;
+  });
+  syncLoops();
+  if (me && me.master) {
+    const f = await db.from("settings").select("value").eq("key", "fx_sound").maybeSingle();
+    fxSoundId = f.data && f.data.value ? f.data.value.sound_id : null;
+    renderSounds();
+  }
+}
+
+async function triggerSound(s) {
+  const patch = s.kind === "loop" ? {playing: !s.playing} : {last_played: new Date().toISOString()};
+  const { error } = await db.from("sounds").update(patch).eq("id", s.id);
+  if (error) mmsg("Не удалось запустить звук.");
+}
+function fxSound() { const s = sounds.find(x => x.id === fxSoundId); if (s) triggerSound(s); else boom(); }
+
+function renderSounds() {
+  const b = $("board"); b.innerHTML = "";
+  sounds.forEach(s => {
+    const btn = el("button", "", (s.kind === "loop" ? "∞ " : "▶ ") + s.name); btn.type = "button";
+    if (s.kind === "loop") btn.setAttribute("aria-pressed", s.playing);
+    btn.onclick = () => triggerSound(s); b.appendChild(btn);
+  });
+  if (!sounds.length) b.appendChild(el("small", "", "Звуков пока нет: загрузите их во вкладке «Звуки»."));
+  const list = $("soundList"); list.innerHTML = "";
+  sounds.forEach(s => {
+    const row = el("div", "snd"); row.appendChild(el("span", "", s.name + (s.kind === "loop" ? " (фоновый)" : " (разовый)")));
+    const go = el("button", "", s.kind === "loop" ? (s.playing ? "Выключить" : "Включить") : "Проиграть"); go.type = "button"; go.onclick = () => triggerSound(s);
+    const v = el("input"); v.type = "range"; v.min = 0; v.max = 100; v.value = Math.round(s.volume * 100); v.setAttribute("aria-label", "Громкость: " + s.name);
+    v.onchange = async () => { await db.from("sounds").update({volume: v.value / 100}).eq("id", s.id); };
+    const del = el("button", "danger", "Удалить"); del.type = "button";
+    del.onclick = async () => {
+      if (!confirm("Удалить звук «" + s.name + "»?")) return;
+      const { error } = await db.from("sounds").delete().eq("id", s.id);
+      if (error) { snmsg("Не удалось удалить."); return; }
+      await db.storage.from("sounds").remove([s.file_path]);
+      if (fxSoundId === s.id) await saveFxSound("");
+      loadSounds();
+    };
+    row.append(go, v, del); list.appendChild(row);
+  });
+  const sel = $("fxSound"); sel.innerHTML = "";
+  const none = el("option", "", "встроенный хлопок"); none.value = ""; sel.appendChild(none);
+  sounds.filter(s => s.kind === "oneshot").forEach(s => { const o = el("option", "", s.name); o.value = s.id; sel.appendChild(o); });
+  sel.value = fxSoundId || "";
+}
+async function saveFxSound(id) {
+  fxSoundId = id || null;
+  await db.from("settings").upsert({key: "fx_sound", value: {sound_id: fxSoundId}}, {onConflict: "key"});
+}
+$("fxSound").onchange = () => saveFxSound($("fxSound").value);
+
+$("soundForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = $("snFile").files[0]; if (!f) return;
+  if (f.size > 5 * 1024 * 1024) { snmsg("Файл больше 5 МБ."); return; }
+  snmsg("Загружаю…");
+  const ext = ((f.name.split(".").pop() || "mp3").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5)) || "mp3";
+  const path = crypto.randomUUID() + "." + ext;
+  const up = await db.storage.from("sounds").upload(path, f, {contentType: f.type || "audio/mpeg"});
+  if (up.error) { snmsg("Файл не загрузился. Мастеру: выполнен ли supabase_sounds.sql?"); return; }
+  const { error } = await db.from("sounds").insert({name: $("snName").value.trim(), kind: $("snKind").value, file_path: path});
+  if (error) { await db.storage.from("sounds").remove([path]); snmsg("Не удалось сохранить звук."); return; }
+  $("soundForm").reset(); snmsg("Звук добавлен.", true); loadSounds();
+});
 
 // ---- Вход и выход
 $("loginForm").addEventListener("submit", async e => {
