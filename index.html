@@ -76,6 +76,10 @@ textarea{min-height:110px;resize:vertical}
 #restBar{padding:.5rem 1rem;font:14px system-ui,sans-serif;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}#restBar.idle{background:var(--deep);color:var(--muted)}#restBar.live{background:#3a2a10;color:var(--foam);border-bottom-color:var(--brass)}#restBar button{padding:.25rem .7rem}
 .snd{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.4rem 0;border-bottom:1px solid var(--line)}.snd span{flex:1;min-width:8rem}.snd input[type=range]{width:90px;display:inline-block;margin:0;padding:0}
 .tag{color:var(--ok);font-size:13px}
+.shg{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.5rem 0}
+.shc{border:1px solid var(--line);border-radius:8px;padding:.4rem;text-align:center}.shc input{margin:.2rem auto;display:block}
+.shr{display:flex;align-items:center;gap:.5rem;padding:.15rem 0}.shr span{flex:1}.shr select{width:auto;margin:0}.shr input[type=checkbox]{width:auto;margin:0}
+.chk{min-width:3.6rem}
 #rollView{flex:1;overflow:auto;padding:1.2rem;font-family:system-ui,sans-serif}
 .rl{max-width:640px}.rl h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 .6rem}
 .rolli{padding:.45rem 0;border-bottom:1px solid var(--line);font-size:15px}.rolli small{color:var(--muted)}
@@ -210,7 +214,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
   </div>
   <div id="rulesView" hidden>
     <div class="scn">
-      <h2>Правила</h2>
+      <h2 id="glH">Правила</h2>
       <label>Поиск<input id="glQ" type="search" placeholder="Например: преимущество, укрытие, огнестрел" autocomplete="off"></label>
       <label>Категория<select id="glCat"></select></label>
       <div class="row"><button id="glNew" type="button">Новая статья</button></div>
@@ -222,6 +226,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <label>Теги и синонимы через запятую<input id="glTags" maxlength="300"></label>
         <label>Источник<input id="glSource" maxlength="120"></label>
         <label>Текст<textarea id="glBody" style="min-height:180px"></textarea></label>
+        <label style="display:flex;align-items:center;gap:.4rem"><input id="glPub" type="checkbox" style="width:auto;margin:0">Показывать игрокам (вкладка «Как играть»)</label>
         <div class="row"><button type="submit">Сохранить</button><button id="glCancel" type="button">Отмена</button></div>
       </form>
       <details>
@@ -279,6 +284,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <div class="row"><button id="saveBtn" type="submit">Сохранить</button><button id="delBtn" class="danger" type="button" hidden>Удалить</button></div>
         <p id="charMsg" class="msg" role="status"></p>
       </form>
+      <div id="sheet" class="prog" hidden></div>
       <div id="progress" class="prog" hidden></div>
     </div>
   </div>
@@ -529,7 +535,7 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; $("tabImp").hidden = !me.master; $("rClear").hidden = !me.master; $("rHidL").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = false; $("tabRules").textContent = me.master ? "Правила" : "Как играть"; $("glH").textContent = me.master ? "Правила" : "Как играть"; $("glNew").parentElement.hidden = !me.master; document.querySelector("#rulesView details").hidden = !me.master; $("tabImp").hidden = !me.master; $("rClear").hidden = !me.master; $("rHidL").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
 }
 
 // ---- Вкладки
@@ -560,7 +566,8 @@ let me = null, chars = [], sel = null, urls = {}, photoBlob = null;
 const msg = (t, ok) => { $("charMsg").textContent = t; $("charMsg").className = "msg" + (ok ? " good" : ""); };
 
 async function loadChars() {
-  const { data, error } = await db.from("characters").select("id,owner,name,class,photo_url,notes,profiles(display_name)").order("created_at");
+  let { data, error } = await db.from("characters").select("id,owner,name,class,photo_url,notes,sheet,profiles(display_name)").order("created_at");
+  if (error) ({ data, error } = await db.from("characters").select("id,owner,name,class,photo_url,notes,profiles(display_name)").order("created_at"));
   if (error) { msg("Не удалось загрузить персонажей."); return; }
   chars = data; urls = {};
   const paths = chars.map(c => c.photo_url).filter(Boolean);
@@ -604,7 +611,84 @@ function renderChars() {
   const pv = $("cPreview"); const has = cur && cur.photo_url && urls[cur.photo_url];
   pv.hidden = !has; if (has) pv.src = urls[cur.photo_url];
   $("delBtn").hidden = !(me.master && cur);
+  renderSheet(cur);
   renderProgress(cur);
+}
+
+// ---- Лист персонажа: механики одинаковы для обеих редакций правил
+const ABIL = [["str", "Сила"], ["dex", "Ловкость"], ["con", "Телосложение"], ["int", "Интеллект"], ["wis", "Мудрость"], ["cha", "Харизма"]];
+const SKILLS = [["Акробатика", "dex"], ["Анализ", "int"], ["Атлетика", "str"], ["Внимательность", "wis"], ["Выживание", "wis"], ["Выступление", "cha"], ["Запугивание", "cha"], ["История", "int"], ["Ловкость рук", "dex"], ["Магия", "int"], ["Медицина", "wis"], ["Обман", "cha"], ["Природа", "int"], ["Проницательность", "wis"], ["Религия", "int"], ["Скрытность", "dex"], ["Убеждение", "cha"], ["Уход за животными", "wis"]];
+const sgn = n => (n < 0 ? "−" : "+") + Math.abs(n), abMod = s => Math.floor((s - 10) / 2);
+function getSheet(c) {
+  const d = {lvl: 1, ab: {str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10}, ac: 10, hp: {cur: 10, max: 10, tmp: 0}, spd: 30, ini: 0}, s = c.sheet || {};
+  c.sheet = {...d, ...s, ab: {...d.ab, ...s.ab}, hp: {...d.hp, ...s.hp}, sv: {...s.sv}, sk: {...s.sk}};
+  return c.sheet;
+}
+function renderSheet(cur) {
+  const box = $("sheet"); box.innerHTML = ""; box.hidden = !cur; if (!cur) return;
+  const S = getSheet(cur), can = me.master || cur.owner === me.id, ups = [];
+  const pb = () => 2 + Math.floor((S.lvl - 1) / 4), mod = k => abMod(S.ab[k]);
+  const refresh = () => ups.forEach(f => f());
+  const note = el("p", "ms", ""), out = el("p", "ms", ""); let timer = null;
+  const save = () => {
+    clearTimeout(timer); note.textContent = "Сохранение…";
+    timer = setTimeout(async () => {
+      const { error } = await db.from("characters").update({sheet: S}).eq("id", cur.id);
+      note.textContent = error ? "Не удалось сохранить лист. Мастеру: выполните supabase_sheet_and_player_rules.sql." : "Лист сохранён.";
+    }, 700);
+  };
+  const bind = (obj, key, min, max) => {
+    const i = el("input", "num"); i.type = "number"; i.min = min; i.max = max; i.value = obj[key]; i.disabled = !can;
+    i.oninput = () => { obj[key] = Math.min(max, Math.max(min, Math.round(+i.value) || 0)); refresh(); save(); };
+    ups.push(() => { if (document.activeElement !== i) i.value = obj[key]; }); return i;
+  };
+  const mode = el("select"); [["normal", "обычный бросок"], ["adv", "с преимуществом"], ["dis", "с помехой"]].forEach(([v, x]) => { const o = el("option", "", x); o.value = v; mode.appendChild(o); });
+  const rollD20 = async (label, bonus) => {
+    out.textContent = "";
+    const { data, error } = await db.rpc("roll_dice", {p_label: label, p_count: 1, p_sides: 20, p_mod: bonus, p_mode: mode.value, p_hidden: false, p_character: cur.id});
+    if (error) { out.textContent = "Бросок не удался. Мастеру: выполнен ли supabase_rolls.sql?"; return; }
+    const r = Array.isArray(data) ? data[0] : data; out.textContent = label + ": " + rollText(r) + r.total;
+  };
+  const rollBtn = (label, bonus) => { const b = el("button", "chk"); b.type = "button"; b.disabled = !can; ups.push(() => b.textContent = sgn(bonus())); b.onclick = () => rollD20(label, bonus()); return b; };
+
+  box.appendChild(el("h2", "", "Лист персонажа"));
+  const l1 = el("p", "ms", "Уровень "); l1.append(bind(S, "lvl", 1, 20), " · КД ", bind(S, "ac", 0, 40), " · Скорость, фт ", bind(S, "spd", 0, 200));
+  const pbt = el("span", "", ""); ups.push(() => pbt.textContent = " · Бонус мастерства " + sgn(pb())); l1.appendChild(pbt); box.appendChild(l1);
+  const l2 = el("p", "ms", "Бросок с листа: "); l2.appendChild(mode); box.append(l2, out);
+
+  const grid = el("div", "shg");
+  ABIL.forEach(([k, n]) => { const c = el("div", "shc"); c.append(el("div", "", n), bind(S.ab, k, 1, 30), rollBtn("Проверка: " + n, () => mod(k))); grid.appendChild(c); });
+  box.appendChild(grid);
+
+  const ini = el("div", "shr"); ini.append(el("span", "", "Инициатива (Ловкость + доп. бонус)"), bind(S, "ini", -20, 20), rollBtn("Инициатива", () => mod("dex") + S.ini)); box.appendChild(ini);
+
+  box.appendChild(el("h3", "", "Хиты"));
+  const hp = el("p", "ms", "Сейчас "); hp.append(bind(S.hp, "cur", 0, 999), " из ", bind(S.hp, "max", 1, 999), " · временные ", bind(S.hp, "tmp", 0, 999)); box.appendChild(hp);
+  const amt = el("input", "num"); amt.type = "number"; amt.min = 1; amt.value = 1; amt.disabled = !can;
+  const dmg = el("button", "danger", "Урон"), heal = el("button", "", "Лечение"); dmg.type = heal.type = "button"; dmg.disabled = heal.disabled = !can;
+  const amount = () => Math.max(0, Math.round(+amt.value) || 0);
+  dmg.onclick = () => { let a = amount(); const t = Math.min(S.hp.tmp, a); S.hp.tmp -= t; a -= t; S.hp.cur = Math.max(0, S.hp.cur - a); refresh(); save(); };
+  heal.onclick = () => { S.hp.cur = Math.min(S.hp.max, S.hp.cur + amount()); refresh(); save(); };
+  const hr = el("div", "row"); hr.append(amt, dmg, heal); box.appendChild(hr);
+
+  box.appendChild(el("h3", "", "Спасброски"));
+  ABIL.forEach(([k, n]) => {
+    const r = el("div", "shr"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!S.sv[k]; cb.disabled = !can; cb.setAttribute("aria-label", "Владение: " + n);
+    cb.onchange = () => { S.sv[k] = cb.checked; refresh(); save(); };
+    r.append(cb, el("span", "", n), rollBtn("Спасбросок: " + n, () => mod(k) + (S.sv[k] ? pb() : 0))); box.appendChild(r);
+  });
+
+  box.appendChild(el("h3", "", "Навыки"));
+  const skB = n => { const s = SKILLS.find(x => x[0] === n); return mod(s[1]) + pb() * (S.sk[n] || 0); };
+  SKILLS.forEach(([n, a]) => {
+    const r = el("div", "shr"), sl = el("select"); sl.disabled = !can; sl.setAttribute("aria-label", "Владение: " + n);
+    [["0", "—"], ["1", "владение"], ["2", "мастерство"]].forEach(([v, x]) => { const o = el("option", "", x); o.value = v; sl.appendChild(o); });
+    sl.value = String(S.sk[n] || 0); sl.onchange = () => { S.sk[n] = +sl.value; refresh(); save(); };
+    const nm = el("span", "", n + " "); nm.appendChild(el("small", "", ABIL.find(x => x[0] === a)[1]));
+    r.append(sl, nm, rollBtn(n, () => skB(n))); box.appendChild(r);
+  });
+  const pp = el("p", "ms", ""); ups.push(() => pp.textContent = "Пассивная Внимательность: " + (10 + skB("Внимательность"))); box.append(pp, note);
+  refresh();
 }
 
 // ---- Прогресс: шкалы практики, вехи, открытые способности
@@ -1009,7 +1093,8 @@ function snippet(a, qs) {
 }
 
 async function loadGlossary() {
-  const { data, error } = await db.from("glossary").select("id,title,category,tags,body,source").order("title");
+  let { data, error } = await db.from("glossary").select("id,title,category,tags,body,source,for_players").order("title");
+  if (error) ({ data, error } = await db.from("glossary").select("id,title,category,tags,body,source").order("title"));
   if (error) { gmsg("Глоссарий недоступен. Мастеру: выполните supabase_glossary.sql."); return; }
   gl = data; gmsg(""); renderGl();
 }
@@ -1034,8 +1119,9 @@ function renderGl() {
   $("glForm").hidden = glEditing === null;
   if (cur && glEditing === null) {
     v.appendChild(el("h3", "", cur.title));
-    v.appendChild(el("p", "ms", cur.category + (cur.source ? " · " + cur.source : "") + (cur.tags ? " · " + cur.tags : "")));
+    v.appendChild(el("p", "ms", cur.category + (cur.source ? " · " + cur.source : "") + (cur.tags ? " · " + cur.tags : "") + (me.master && cur.for_players ? " · видна игрокам" : "")));
     const body = el("div", "", cur.body); body.style.whiteSpace = "pre-wrap"; v.appendChild(body);
+    if (!me.master) return;
     const r = el("div", "row"), ed = el("button", "", "Править"), del = el("button", "danger", "Удалить"); ed.type = del.type = "button";
     ed.onclick = () => openGlForm(cur);
     del.onclick = async () => {
@@ -1049,7 +1135,7 @@ function renderGl() {
 function openGlForm(a) {
   glEditing = a || {}; glSel = a ? a.id : glSel;
   $("glTitle").value = a ? a.title : ""; $("glCategory").value = a ? a.category : ($("glCat").value || "Общее");
-  $("glTags").value = a ? a.tags : ""; $("glSource").value = a ? a.source : ""; $("glBody").value = a ? a.body : "";
+  $("glTags").value = a ? a.tags : ""; $("glSource").value = a ? a.source : ""; $("glBody").value = a ? a.body : ""; $("glPub").checked = !!(a && a.for_players);
   renderGl(); $("glTitle").focus();
 }
 $("glQ").addEventListener("input", renderGl);
@@ -1058,7 +1144,7 @@ $("glNew").onclick = () => openGlForm(null);
 $("glCancel").onclick = () => { glEditing = null; renderGl(); };
 $("glForm").addEventListener("submit", async e => {
   e.preventDefault();
-  const row = {title: $("glTitle").value.trim(), category: $("glCategory").value.trim() || "Общее", tags: $("glTags").value.trim(), source: $("glSource").value.trim(), body: $("glBody").value};
+  const row = {title: $("glTitle").value.trim(), category: $("glCategory").value.trim() || "Общее", tags: $("glTags").value.trim(), source: $("glSource").value.trim(), body: $("glBody").value, for_players: $("glPub").checked};
   const q = glEditing && glEditing.id ? db.from("glossary").update(row).eq("id", glEditing.id).select("id").single() : db.from("glossary").insert(row).select("id").single();
   const { data, error } = await q;
   if (error) { gmsg("Не удалось сохранить."); return; }
