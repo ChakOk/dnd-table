@@ -72,6 +72,8 @@ textarea{min-height:110px;resize:vertical}
 .sc{display:flex;gap:.6rem;align-items:center;padding:.5rem 0;border-bottom:1px solid var(--line)}
 .sc span{flex:1}.sc small{display:block;color:var(--muted)}
 .scn h3{font:600 .95rem Georgia,serif;margin:1.2rem 0 .4rem;color:var(--brass)}
+.poi{font-size:22px;line-height:1;text-align:center;text-shadow:0 1px 3px #000}.poi.off{opacity:.45}
+#restBar{padding:.5rem 1rem;font:14px system-ui,sans-serif;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}#restBar.idle{background:var(--deep);color:var(--muted)}#restBar.live{background:#3a2a10;color:var(--foam);border-bottom-color:var(--brass)}#restBar button{padding:.25rem .7rem}
 .snd{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.4rem 0;border-bottom:1px solid var(--line)}.snd span{flex:1;min-width:8rem}.snd input[type=range]{width:90px;display:inline-block;margin:0;padding:0}
 .tag{color:var(--ok);font-size:13px}
 .upl{display:inline-block;margin:0;background:var(--brass);color:#1a1405;border-radius:4px;padding:.55rem .9rem;font:600 14px system-ui,sans-serif;cursor:pointer}
@@ -106,6 +108,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
     <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
     <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
+  <div id="restBar" hidden></div>
   <main id="mapView" hidden>
     <div id="map" aria-label="Карта мира"></div>
     <aside>
@@ -118,8 +121,11 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
         <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
         <div class="row"><button id="fogBtn" type="button" aria-pressed="false">Туман</button><button id="fogOpen" type="button" aria-pressed="false">Открыть зону</button><select id="fogSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select><button id="fogClose" type="button" aria-pressed="false">Закрыть зону</button><button id="fogReset" class="danger" type="button">Скрыть всё</button></div>
+        <div class="row"><button id="poBtn" type="button" aria-pressed="false">Поставить точку</button><select id="poKind" aria-label="Тип точки"></select></div>
+        <div class="row"><label style="flex:1">Сцена лагеря<select id="campSel"></select></label><label>Согласие, %<input id="restPct" type="number" min="1" max="100" value="100" style="width:5rem"></label></div>
         <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
-        <div id="board" class="row" aria-label="Звуки"></div>
+        <div class="row"><button id="backupBtn" type="button">Скачать копию данных</button></div>
+      <div id="board" class="row" aria-label="Звуки"></div>
       <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
       </div>
       <p id="mapMsg" class="msg" role="status"></p>
@@ -264,14 +270,14 @@ const $ = id => document.getElementById(id);
 const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
-let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false;
+let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false, poMode = false, poiM = {};
 const mmsg = (t, ok) => { $("mapMsg").textContent = t; $("mapMsg").className = "msg" + (ok ? " good" : ""); };
 const ll = (x, y) => [dims.h - y, x];
 
 function clearScene() {
   if (bg) { bg.remove(); bg = null; }
   Object.values(tokM).forEach(m => m.remove()); tokM = {};
-  cityM.forEach(m => m.remove()); cityM = []; fogOn = false; fogZ = []; drawFog();
+  cityM.forEach(m => m.remove()); cityM = []; fogOn = false; fogZ = []; drawFog(); Object.values(poiM).forEach(m => m.remove()); poiM = {};
   fxL.forEach(l => l.remove()); fxL = []; toks = []; effs = []; scn = null; dims = null;
 }
 
@@ -309,15 +315,16 @@ async function openScene() {
 async function loadSceneObjects() {
   if (!scn || !dims) return;
   const sid = scn.id;
-  const [t, e, fz, fs] = await Promise.all([
+  const [t, e, fz, fs, po] = await Promise.all([
     db.from("tokens").select("id,label,kind,owner,character_id,x,y").eq("scene_id", sid),
     db.from("effects").select("id,kind,x,y,radius").eq("scene_id", sid),
     db.from("fog_zones").select("id,x,y,radius").eq("scene_id", sid),
-    db.from("settings").select("value").eq("key", "fog_" + sid).maybeSingle()]);
+    db.from("settings").select("value").eq("key", "fog_" + sid).maybeSingle(),
+    db.from("map_points").select("id,name,kind,note,x,y,visible").eq("scene_id", sid)]);
   if (!scn || scn.id !== sid) return;
   toks = t.data || []; effs = e.data || [];
   fogZ = fz.data || []; fogOn = !!(fs.data && fs.data.value && fs.data.value.on); $("fogBtn").setAttribute("aria-pressed", fogOn);
-  drawEffects(); drawTokens(); refreshFog();
+  drawEffects(); drawTokens(); drawPois(po.data || []);
   if (scn.kind === "world" && !cityM.length) {
     const c = await db.from("map_points").select("id,name,continent,x,y,note").eq("kind", "city");
     if (scn && scn.id === sid) drawCities(c.data || []);
@@ -416,10 +423,10 @@ async function addToken(row) {
 $("addTok").onclick = () => { const c = chars.find(c => c.id === $("tokChar").value); if (c) addToken({label: c.name, kind: "pc", character_id: c.id, owner: c.owner}); };
 $("addParty").onclick = () => addToken({label: "Партия", kind: "party"});
 function setMode(m) {
-  fxMode = m === "fx"; rmMode = m === "rm"; foMode = m === "fo"; fcMode = m === "fc";
-  [["fxBtn", fxMode], ["rmTok", rmMode], ["fogOpen", foMode], ["fogClose", fcMode]].forEach(([id, v]) => $(id).setAttribute("aria-pressed", v));
-  if (map) map.getContainer().style.cursor = (fxMode || foMode) ? "crosshair" : (rmMode || fcMode) ? "pointer" : "";
-  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : foMode ? "Нажимайте на карту, чтобы открыть зону." : fcMode ? "Нажмите на открытую зону, чтобы закрыть её." : "");
+  fxMode = m === "fx"; rmMode = m === "rm"; foMode = m === "fo"; fcMode = m === "fc"; poMode = m === "po";
+  [["fxBtn", fxMode], ["rmTok", rmMode], ["fogOpen", foMode], ["fogClose", fcMode], ["poBtn", poMode]].forEach(([id, v]) => $(id).setAttribute("aria-pressed", v));
+  if (map) map.getContainer().style.cursor = (fxMode || foMode || poMode) ? "crosshair" : (rmMode || fcMode) ? "pointer" : "";
+  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : foMode ? "Нажимайте на карту, чтобы открыть зону." : fcMode ? "Нажмите на открытую зону, чтобы закрыть её." : poMode ? "Нажмите на карту, чтобы поставить точку. Новая точка скрыта от игроков." : "");
 }
 $("fxBtn").onclick = () => setMode(fxMode ? "" : "fx");
 $("rmTok").onclick = () => setMode(rmMode ? "" : "rm");
@@ -442,6 +449,7 @@ function boom() {
 }
 async function onMapClick(e) {
   if (!me.master || !scn || !dims) return;
+  if (poMode) { poiClick(e); return; }
   if (foMode || fcMode) { fogClick(e); return; }
   if (!fxMode) return;
   const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
@@ -478,7 +486,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  stopAudio(); rt = []; gl = []; jq = []; jl = []; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -497,7 +505,7 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; $("tabImp").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; $("tabImp").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
 }
 
 // ---- Вкладки
@@ -510,6 +518,7 @@ function tab(name) {
   if (name === "rules") loadGlossary();
   if (name === "journal") loadJournal();
   if (name === "imp") loadTables();
+  fillCampSel();
 }
 $("tabChars").onclick = () => tab("chars");
 $("tabScenes").onclick = () => tab("scenes");
@@ -749,6 +758,8 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "tokens"}, () => { if (!dragging) loadSceneObjects(); })
     .on("postgres_changes", {event: "*", schema: "public", table: "effects"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "sounds"}, () => loadSounds())
+    .on("postgres_changes", {event: "*", schema: "public", table: "rests"}, () => loadRest())
+    .on("postgres_changes", {event: "*", schema: "public", table: "map_points"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "fog_zones"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, p => { const k = p.new && p.new.key; if (!k || k.startsWith("fog_")) loadSceneObjects(); })
     .subscribe();
@@ -900,6 +911,7 @@ function refreshFog() {
     showLayer(m, !hide || always || !inFog(t.x, t.y));
   });
   cityM.forEach(m => { const p = m.getLatLng(); showLayer(m, !hide || !inFog(p.lng, dims.h - p.lat)); });
+  Object.values(poiM).forEach(m => { const p = m.getLatLng(); showLayer(m, !hide || !inFog(p.lng, dims.h - p.lat)); });
 }
 async function fogClick(e) {
   const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
@@ -1170,6 +1182,169 @@ $("rtDel").onclick = async () => {
   const { error } = await db.from("random_tables").delete().eq("id", rtEditing.id);
   if (error) { impmsg("Не удалось удалить."); return; }
   rtEditing = null; await loadTables(); impmsg("Удалено.", true);
+};
+
+// ---- Точки интереса: ставит мастер, игрок читает карточку; правка прямо в карточке
+const POI = {
+  lighthouse: {icon: "🗼", label: "Маяк"}, outpost: {icon: "☠️", label: "Аванпост пиратов"},
+  druid_altar: {icon: "🌿", label: "Алтарь друидов"}, dark_altar: {icon: "🌑", label: "Алтарь тёмных магов"},
+  black_market: {icon: "💰", label: "Чёрный рынок"}, mine: {icon: "⛏️", label: "Шахта"},
+  ruins: {icon: "🏛️", label: "Разрушенный храм"}, other: {icon: "📍", label: "Другое"}};
+Object.entries(POI).forEach(([v, o]) => { const op = el("option", "", o.icon + " " + o.label); op.value = v; $("poKind").appendChild(op); });
+$("poBtn").onclick = () => setMode(poMode ? "" : "po");
+
+async function poiClick(e) {
+  const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat), kind = $("poKind").value;
+  if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
+  const name = prompt("Название точки", POI[kind].label);
+  if (name === null || !name.trim()) return;
+  const { error } = await db.from("map_points").insert({scene_id: scn.id, kind, name: name.trim(), x, y, note: "", visible: false});
+  if (error) mmsg("Не удалось поставить точку. Мастеру: выполнен ли supabase_poi.sql?"); else loadSceneObjects();
+}
+
+function poiPopup(p) {
+  const k = POI[p.kind] || POI.other, box = el("div");
+  L.DomEvent.disableClickPropagation(box); L.DomEvent.on(box, "keydown keypress keyup", L.DomEvent.stopPropagation);
+  if (!me.master) {
+    box.appendChild(el("b", "", k.icon + " " + p.name)); box.appendChild(el("div", "", k.label));
+    if (p.note) { const n = el("div", "", p.note); n.style.whiteSpace = "pre-wrap"; box.appendChild(n); }
+    return box;
+  }
+  const name = el("input"); name.value = p.name; name.maxLength = 80; name.setAttribute("aria-label", "Название");
+  const kind = el("select"); kind.setAttribute("aria-label", "Тип");
+  Object.entries(POI).forEach(([v, o]) => { const op = el("option", "", o.label); op.value = v; kind.appendChild(op); }); kind.value = POI[p.kind] ? p.kind : "other";
+  const note = el("textarea"); note.value = p.note; note.setAttribute("aria-label", "Описание для игроков"); note.style.minHeight = "70px";
+  const vis = el("input"); vis.type = "checkbox"; vis.checked = p.visible; vis.style.cssText = "display:inline;width:auto;margin:0 .4rem 0 0";
+  const vl = el("label"); vl.append(vis, "Видна игрокам");
+  const save = el("button", "", "Сохранить"), del = el("button", "danger", "Удалить"); save.type = del.type = "button";
+  save.onclick = async () => {
+    const { error } = await db.from("map_points").update({name: name.value.trim() || k.label, kind: kind.value, note: note.value, visible: vis.checked}).eq("id", p.id);
+    if (error) mmsg("Не удалось сохранить точку."); else loadSceneObjects();
+  };
+  del.onclick = async () => {
+    if (!confirm("Удалить точку «" + p.name + "»?")) return;
+    const { error } = await db.from("map_points").delete().eq("id", p.id);
+    if (error) mmsg("Не удалось удалить точку."); else loadSceneObjects();
+  };
+  const r = el("div", "row"); r.append(save, del);
+  box.append(name, kind, note, vl, r); return box;
+}
+
+function drawPois(list) {
+  const ids = new Set(list.map(p => p.id));
+  Object.keys(poiM).forEach(id => { if (!ids.has(id)) { poiM[id].remove(); delete poiM[id]; } });
+  list.forEach(p => {
+    const sig = JSON.stringify([p.name, p.kind, p.note, p.visible, p.x, p.y]);
+    if (poiM[p.id] && poiM[p.id]._sig === sig) return;
+    if (poiM[p.id]) poiM[p.id].remove();
+    const k = POI[p.kind] || POI.other;
+    const icon = L.divIcon({html: el("div", "poi" + (p.visible ? "" : " off"), k.icon), className: "", iconSize: [26, 26], iconAnchor: [13, 13]});
+    const m = L.marker(ll(p.x, p.y), {icon, keyboard: false, zIndexOffset: -50, bubblingMouseEvents: true}).addTo(map);
+    m._sig = sig; m.bindTooltip(p.name, {direction: "top", offset: [0, -10]});
+    m.bindPopup(() => poiPopup(p));
+    m.on("click", () => { if (fxMode || rmMode || foMode || fcMode || poMode) m.closePopup(); });
+    poiM[p.id] = m;
+  });
+  refreshFog();
+}
+
+// ---- Отдых: совместное решение игроков (короткий и длительный), лагерь как отдельная сцена
+const baseTitle = document.title;
+let rest = null, restWho = "", campId = null;
+const RK = {short: "короткий", long: "длительный"};
+const mk = (t, fn, cls) => { const b = el("button", cls || "", t); b.type = "button"; b.onclick = fn; return b; };
+const restErr = t => { const s = el("span", "", t); s.style.color = "var(--bad)"; $("restBar").appendChild(s); };
+
+async function loadRest() {
+  const r = await db.from("rests").select("id,kind,status,proposed_by,votes,voters").in("status", ["voting", "accepted", "camp"]).order("created_at", {ascending: false}).limit(1);
+  if (r.error) { rest = null; $("restBar").hidden = true; return; } // таблицы ещё нет: полоса скрыта
+  rest = r.data[0] || null; restWho = "";
+  if (rest && rest.proposed_by) { const p = await db.from("profiles").select("display_name").eq("id", rest.proposed_by).maybeSingle(); restWho = p.data ? p.data.display_name : "Кто-то"; }
+  if (me.master) {
+    const st = await db.from("settings").select("key,value").in("key", ["camp_scene", "rest_threshold"]);
+    (st.data || []).forEach(x => { if (x.key === "camp_scene") campId = x.value && x.value.id; if (x.key === "rest_threshold" && x.value) $("restPct").value = x.value.pct; });
+    fillCampSel();
+  }
+  renderRest();
+}
+function fillCampSel() {
+  if (!me || !me.master) return;
+  const sel = $("campSel"); sel.innerHTML = "";
+  const none = el("option", "", "не выбрана"); none.value = ""; sel.appendChild(none);
+  (typeof scenes !== "undefined" ? scenes : []).forEach(sc => { const o = el("option", "", sc.name); o.value = sc.id; sel.appendChild(o); });
+  sel.value = campId || "";
+}
+$("campSel").onchange = async () => { campId = $("campSel").value || null; await db.from("settings").upsert({key: "camp_scene", value: {id: campId}}, {onConflict: "key"}); };
+$("restPct").onchange = async () => {
+  const pct = Math.min(100, Math.max(1, Math.round(+$("restPct").value) || 100)); $("restPct").value = pct;
+  await db.from("settings").upsert({key: "rest_threshold", value: {pct}}, {onConflict: "key"});
+};
+
+function renderRest() {
+  const bar = $("restBar"); bar.innerHTML = ""; bar.hidden = false; document.title = baseTitle;
+  if (!rest) {
+    bar.className = "idle";
+    bar.append("Отдых:", mk("Короткий", () => proposeRest("short")), mk("Длительный", () => proposeRest("long")));
+    return;
+  }
+  bar.className = "live";
+  const voters = rest.voters || [], votes = rest.votes || {}, a = Object.values(votes).filter(v => v === true).length, mine = votes[me.id];
+  if (rest.status === "voting") {
+    document.title = "⚑ Отдых: нужен голос · " + baseTitle;
+    bar.append(restWho + " предлагает " + RK[rest.kind] + " отдых. За: " + a + " из " + voters.length + ".");
+    if (voters.includes(me.id) && mine === undefined) bar.append(mk("Согласен", () => voteRest(true)), mk("Не сейчас", () => voteRest(false)));
+    else if (voters.includes(me.id)) bar.append("Ваш голос: " + (mine ? "за" : "против") + ".");
+    if (me.master) bar.append(mk("Принять без остальных", () => setRestStatus("accepted")));
+    if (rest.proposed_by === me.id || me.master) bar.append(mk("Отменить", cancelRest, "danger"));
+  } else if (rest.status === "accepted") {
+    bar.append("Решено: " + RK[rest.kind] + " отдых.");
+    if (me.master) bar.append(mk(campId ? "Перейти в лагерь" : "Отдыхаем на месте", goCamp));
+    else bar.append("Мастер ведёт партию в лагерь.");
+  } else {
+    bar.append("Лагерь: идёт " + RK[rest.kind] + " отдых.");
+    if (me.master) bar.append(mk("Завершить отдых", endRest));
+  }
+}
+async function proposeRest(kind) {
+  const { error } = await db.rpc("propose_rest", {p_kind: kind});
+  if (error) { renderRest(); restErr(error.message.includes("already") ? "Отдых уже предложен." : "Не получилось предложить отдых."); } else loadRest();
+}
+async function voteRest(agree) {
+  const { error } = await db.rpc("vote_rest", {p_id: rest.id, p_agree: agree});
+  if (error) { renderRest(); restErr("Не получилось проголосовать."); } else loadRest();
+}
+async function cancelRest() { await db.rpc("cancel_rest", {p_id: rest.id}); loadRest(); }
+async function setRestStatus(st) {
+  const done = st === "done" || st === "cancelled";
+  const { error } = await db.from("rests").update({status: st, closed_at: done ? new Date().toISOString() : null}).eq("id", rest.id);
+  if (error) restErr("Не удалось обновить отдых."); else loadRest();
+}
+async function goCamp() {
+  if (campId && scn && scn.id !== campId) await db.from("settings").upsert({key: "rest_return", value: {scene_id: scn.id}}, {onConflict: "key"});
+  if (campId) {
+    const { error } = await db.rpc("set_current_scene", {p_id: campId});
+    if (error) { renderRest(); restErr("Не удалось открыть сцену лагеря."); return; }
+    loadScenes();
+  }
+  setRestStatus("camp");
+}
+async function endRest() {
+  const r = await db.from("settings").select("value").eq("key", "rest_return").maybeSingle();
+  const id = r.data && r.data.value && r.data.value.scene_id;
+  if (id) { await db.rpc("set_current_scene", {p_id: id}); await db.from("settings").upsert({key: "rest_return", value: {scene_id: null}}, {onConflict: "key"}); loadScenes(); }
+  setRestStatus("done");
+}
+
+// ---- Копия данных: мастер скачивает все таблицы одним файлом (файлы картинок и звуков в копию не входят)
+$("backupBtn").onclick = async () => {
+  const T = ["profiles","characters","character_progress","scenes","tokens","effects","fog_zones","settings","session_log","map_points","sounds","glossary","quests","random_tables","rests","player_notes"];
+  const out = {saved_at: new Date().toISOString(), tables: {}}; let n = 0;
+  for (const t of T) { const r = await db.from(t).select("*"); if (!r.error) { out.tables[t] = r.data; n++; } }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(out, null, 1)], {type: "application/json"}));
+  a.download = "dnd-backup-" + out.saved_at.slice(0, 10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  mmsg("Копия скачана, таблиц: " + n + ".");
 };
 
 // ---- Вход и выход
