@@ -102,7 +102,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button></div>
     <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <main id="mapView" hidden>
@@ -124,6 +124,31 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <p id="mapMsg" class="msg" role="status"></p>
     </aside>
   </main>
+  <div id="rulesView" hidden>
+    <div class="scn">
+      <h2>Правила</h2>
+      <label>Поиск<input id="glQ" type="search" placeholder="Например: преимущество, укрытие, огнестрел" autocomplete="off"></label>
+      <label>Категория<select id="glCat"></select></label>
+      <div class="row"><button id="glNew" type="button">Новая статья</button></div>
+      <div id="glList"></div>
+      <div id="glView" hidden></div>
+      <form id="glForm" hidden>
+        <label>Название<input id="glTitle" maxlength="120" required></label>
+        <label>Категория<input id="glCategory" list="glCats" maxlength="60" required></label><datalist id="glCats"></datalist>
+        <label>Теги и синонимы через запятую<input id="glTags" maxlength="300"></label>
+        <label>Источник<input id="glSource" maxlength="120"></label>
+        <label>Текст<textarea id="glBody" style="min-height:180px"></textarea></label>
+        <div class="row"><button type="submit">Сохранить</button><button id="glCancel" type="button">Отмена</button></div>
+      </form>
+      <details>
+        <summary>Вставить сразу много статей</summary>
+        <p class="small">Каждая статья начинается со строки «# Название | Категория | теги через запятую», дальше идёт её текст.</p>
+        <textarea id="glImp" style="min-height:140px"></textarea>
+        <div class="row"><button id="glImport" type="button">Добавить из текста</button></div>
+      </details>
+      <p id="glMsg" class="msg" role="status"></p>
+    </div>
+  </div>
   <div id="soundsView" hidden>
     <div class="scn">
       <h2>Звуки</h2>
@@ -399,7 +424,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  stopAudio(); sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); gl = []; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -418,20 +443,22 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); subscribeScenes();
 }
 
 // ---- Вкладки
-const VIEWS = {sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const VIEWS = {rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
   for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
   if (name === "map") openScene();
   if (name === "scenes") loadScenes();
   if (name === "sounds") renderSounds();
+  if (name === "rules") loadGlossary();
 }
 $("tabChars").onclick = () => tab("chars");
 $("tabScenes").onclick = () => tab("scenes");
 $("tabSounds").onclick = () => tab("sounds");
+$("tabRules").onclick = () => tab("rules");
 $("tabMap").onclick = () => tab("map");
 
 // ---- Персонажи
@@ -841,6 +868,115 @@ $("fogReset").onclick = async () => {
   if (!scn || !confirm("Закрыть все открытые зоны на этой сцене?")) return;
   const { error } = await db.from("fog_zones").delete().eq("scene_id", scn.id);
   if (error) mmsg("Не удалось закрыть зоны."); else loadSceneObjects();
+};
+
+// ---- Правила: глоссарий с поиском без ИИ (окончания слов, мелкие опечатки, синонимы в тегах)
+let gl = [], glSel = null, glEditing = null;
+const gmsg = (t, ok) => { $("glMsg").textContent = t; $("glMsg").className = "msg" + (ok ? " good" : ""); };
+const nz = t => (t || "").toLowerCase().replace(/ё/g, "е");
+const words = t => nz(t).split(/[^a-zа-я0-9]+/).filter(w => w.length > 1);
+const stem = w => w.length > 3 ? w.slice(0, w.length - (w.length > 6 ? 3 : w.length > 4 ? 2 : 1)) : w;
+function lev1(a, b) { // отличаются не больше чем одной буквой (замена, вставка, перестановка)
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0; while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+  const [s, l] = a.length < b.length ? [a, b] : [b, a];
+  return s.slice(i) === l.slice(i + 1);
+}
+function hit(q, ws) {
+  const s = stem(q);
+  if (ws.some(w => w.startsWith(s))) return 1;
+  if (q.length >= 5 && ws.some(w => lev1(q, w) || lev1(s, w.slice(0, s.length)))) return .6;
+  return 0;
+}
+function searchGl(qs, cat) {
+  const list = gl.filter(a => !cat || a.category === cat), qw = words(qs);
+  if (!qw.length) return list;
+  const scored = list.map(a => {
+    const x = a._ix || (a._ix = {t: words(a.title), g: words(a.tags), b: words(a.body)});
+    let sc = 0, all = true;
+    qw.forEach(q => { const h = Math.max(hit(q, x.t) * 5, hit(q, x.g) * 4, hit(q, x.b)); if (!h) all = false; sc += h; });
+    return {a, sc, all};
+  }).filter(r => r.sc > 0);
+  const strict = scored.filter(r => r.all);
+  return (strict.length ? strict : scored).sort((p, q) => q.sc - p.sc).map(r => r.a);
+}
+function snippet(a, qs) {
+  const b = a.body.replace(/\s+/g, " "), nb = nz(b);
+  for (const q of words(qs)) {
+    const i = nb.indexOf(stem(q));
+    if (i >= 0) { const st = Math.max(0, i - 40); return (st ? "…" : "") + b.slice(st, st + 140) + (st + 140 < b.length ? "…" : ""); }
+  }
+  return b.slice(0, 140) + (b.length > 140 ? "…" : "");
+}
+
+async function loadGlossary() {
+  const { data, error } = await db.from("glossary").select("id,title,category,tags,body,source").order("title");
+  if (error) { gmsg("Глоссарий недоступен. Мастеру: выполните supabase_glossary.sql."); return; }
+  gl = data; gmsg(""); renderGl();
+}
+function renderGl() {
+  const cats = [...new Set(gl.map(a => a.category))].sort(), sel = $("glCat"), key = cats.join("|");
+  if (sel.dataset.k !== key) {
+    const keep = sel.value; sel.innerHTML = ""; sel.dataset.k = key;
+    const all = el("option", "", "Все категории"); all.value = ""; sel.appendChild(all);
+    cats.forEach(c => { const o = el("option", "", c); o.value = c; sel.appendChild(o); });
+    sel.value = cats.includes(keep) ? keep : "";
+    const dl = $("glCats"); dl.innerHTML = ""; cats.forEach(c => { const o = el("option"); o.value = c; dl.appendChild(o); });
+  }
+  const q = $("glQ").value, res = searchGl(q, sel.value), list = $("glList"); list.innerHTML = "";
+  if (!res.length) list.appendChild(el("p", "ms", gl.length ? "Ничего не найдено." : "Статей пока нет."));
+  res.slice(0, 40).forEach(a => {
+    const b = el("button", "ch"); b.type = "button"; if (a.id === glSel) b.setAttribute("aria-current", "true");
+    const t = el("span", "", a.title); t.appendChild(el("small", "", a.category + " · " + snippet(a, q)));
+    b.appendChild(t); b.onclick = () => { glSel = a.id; glEditing = null; renderGl(); }; list.appendChild(b);
+  });
+  if (res.length > 40) list.appendChild(el("p", "ms", "Показаны первые 40 из " + res.length + ", уточните запрос."));
+  const cur = gl.find(a => a.id === glSel), v = $("glView"); v.innerHTML = ""; v.hidden = !cur || glEditing !== null;
+  $("glForm").hidden = glEditing === null;
+  if (cur && glEditing === null) {
+    v.appendChild(el("h3", "", cur.title));
+    v.appendChild(el("p", "ms", cur.category + (cur.source ? " · " + cur.source : "") + (cur.tags ? " · " + cur.tags : "")));
+    const body = el("div", "", cur.body); body.style.whiteSpace = "pre-wrap"; v.appendChild(body);
+    const r = el("div", "row"), ed = el("button", "", "Править"), del = el("button", "danger", "Удалить"); ed.type = del.type = "button";
+    ed.onclick = () => openGlForm(cur);
+    del.onclick = async () => {
+      if (!confirm("Удалить статью «" + cur.title + "»?")) return;
+      const { error } = await db.from("glossary").delete().eq("id", cur.id);
+      if (error) gmsg("Не удалось удалить."); else { glSel = null; loadGlossary(); }
+    };
+    r.append(ed, del); v.appendChild(r);
+  }
+}
+function openGlForm(a) {
+  glEditing = a || {}; glSel = a ? a.id : glSel;
+  $("glTitle").value = a ? a.title : ""; $("glCategory").value = a ? a.category : ($("glCat").value || "Общее");
+  $("glTags").value = a ? a.tags : ""; $("glSource").value = a ? a.source : ""; $("glBody").value = a ? a.body : "";
+  renderGl(); $("glTitle").focus();
+}
+$("glQ").addEventListener("input", renderGl);
+$("glCat").addEventListener("change", renderGl);
+$("glNew").onclick = () => openGlForm(null);
+$("glCancel").onclick = () => { glEditing = null; renderGl(); };
+$("glForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const row = {title: $("glTitle").value.trim(), category: $("glCategory").value.trim() || "Общее", tags: $("glTags").value.trim(), source: $("glSource").value.trim(), body: $("glBody").value};
+  const q = glEditing && glEditing.id ? db.from("glossary").update(row).eq("id", glEditing.id).select("id").single() : db.from("glossary").insert(row).select("id").single();
+  const { data, error } = await q;
+  if (error) { gmsg("Не удалось сохранить."); return; }
+  glSel = data.id; glEditing = null; await loadGlossary(); gmsg("Сохранено.", true);
+});
+$("glImport").onclick = async () => {
+  const parts = $("glImp").value.split(/^# /m).map(p => p.trim()).filter(Boolean);
+  const rows = parts.map(p => {
+    const nl = p.indexOf("\n"), head = (nl < 0 ? p : p.slice(0, nl)).split("|").map(x => x.trim());
+    return {title: head[0], category: head[1] || "Общее", tags: head[2] || "", body: nl < 0 ? "" : p.slice(nl + 1).trim()};
+  }).filter(r => r.title);
+  if (!rows.length) { gmsg("Не нашёл статей: каждая должна начинаться со строки «# Название | Категория | теги»."); return; }
+  if (rows.length > 200) { gmsg("За один раз не больше 200 статей."); return; }
+  const { error } = await db.from("glossary").insert(rows);
+  if (error) { gmsg("Не удалось добавить."); return; }
+  $("glImp").value = ""; await loadGlossary(); gmsg("Добавлено статей: " + rows.length + ".", true);
 };
 
 // ---- Вход и выход
