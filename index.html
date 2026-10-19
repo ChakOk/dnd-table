@@ -76,6 +76,10 @@ textarea{min-height:110px;resize:vertical}
 #restBar{padding:.5rem 1rem;font:14px system-ui,sans-serif;display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}#restBar.idle{background:var(--deep);color:var(--muted)}#restBar.live{background:#3a2a10;color:var(--foam);border-bottom-color:var(--brass)}#restBar button{padding:.25rem .7rem}
 .snd{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;padding:.4rem 0;border-bottom:1px solid var(--line)}.snd span{flex:1;min-width:8rem}.snd input[type=range]{width:90px;display:inline-block;margin:0;padding:0}
 .tag{color:var(--ok);font-size:13px}
+#rollView{flex:1;overflow:auto;padding:1.2rem;font-family:system-ui,sans-serif}
+.rl{max-width:640px}.rl h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 .6rem}
+.rolli{padding:.45rem 0;border-bottom:1px solid var(--line);font-size:15px}.rolli small{color:var(--muted)}
+.rolli .crit{color:var(--ok)}.rolli .fail{color:var(--bad)}.tab.new{color:var(--brass)}
 .upl{display:inline-block;margin:0;background:var(--brass);color:#1a1405;border-radius:4px;padding:.55rem .9rem;font:600 14px system-ui,sans-serif;cursor:pointer}
 .upl:focus-within{outline:2px solid var(--foam)}
 button[aria-pressed="true"]{outline:2px solid var(--foam)}
@@ -105,7 +109,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabRolls" role="tab" type="button">Броски</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
     <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <div id="restBar" hidden></div>
@@ -131,6 +135,26 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <p id="mapMsg" class="msg" role="status"></p>
     </aside>
   </main>
+  <div id="rollView" hidden>
+    <div class="rl">
+      <h2>Броски</h2>
+      <div class="row">
+        <input id="rN" type="number" min="1" max="20" value="1" aria-label="Сколько кубиков" title="Сколько кубиков" style="width:5rem;margin:0">
+        <input id="rM" type="number" min="-100" max="100" value="0" aria-label="Модификатор" title="Модификатор" style="width:5rem;margin:0">
+        <select id="rA" aria-label="Режим" style="width:auto;margin:0"><option value="normal">обычный</option><option value="adv">преимущество</option><option value="dis">помеха</option></select>
+        <input id="rL" maxlength="60" placeholder="Название броска, например Атака" aria-label="Название броска" style="flex:1;min-width:10rem;margin:0">
+      </div>
+      <div class="row">
+        <select id="rC" aria-label="От лица персонажа" style="width:auto;margin:0"></select>
+        <label id="rHidL" hidden style="display:flex;align-items:center;gap:.4rem"><input id="rH" type="checkbox" style="width:auto;margin:0">Скрытый бросок</label>
+      </div>
+      <div class="row" id="rBtns"></div>
+      <p id="rollMsg" class="msg" role="status"></p>
+      <p class="ms">Два кубика и +3 дают, например, 2d6+3. Преимущество и помеха работают только для одного d20. Результат считает сервер.</p>
+      <div id="rollLog"></div>
+      <div class="row"><button id="rClear" class="danger" type="button" hidden>Очистить журнал</button></div>
+    </div>
+  </div>
   <div id="impView" hidden>
     <div class="scn">
       <h2>Импровизация</h2>
@@ -267,7 +291,7 @@ const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
 const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, данные защищены правилами базы
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
+const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes","rolls"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
 let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false, poMode = false, poiM = {};
@@ -486,7 +510,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; rolls = []; $("rollLog").innerHTML = ""; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -505,11 +529,11 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; $("tabImp").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = !me.master; $("tabImp").hidden = !me.master; $("rClear").hidden = !me.master; $("rHidL").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
 }
 
 // ---- Вкладки
-const VIEWS = {imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const VIEWS = {rolls: ["rollView", "tabRolls"], imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
   for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
   if (name === "map") openScene();
@@ -518,9 +542,11 @@ function tab(name) {
   if (name === "rules") loadGlossary();
   if (name === "journal") loadJournal();
   if (name === "imp") loadTables();
+  if (name === "rolls") { $("tabRolls").classList.remove("new"); fillRollChars(); loadRolls(); }
   fillCampSel();
 }
 $("tabChars").onclick = () => tab("chars");
+$("tabRolls").onclick = () => tab("rolls");
 $("tabScenes").onclick = () => tab("scenes");
 $("tabSounds").onclick = () => tab("sounds");
 $("tabRules").onclick = () => tab("rules");
@@ -762,6 +788,8 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "map_points"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "fog_zones"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, p => { const k = p.new && p.new.key; if (!k || k.startsWith("fog_")) loadSceneObjects(); })
+    .on("postgres_changes", {event: "*", schema: "public", table: "rolls"}, () => { loadRolls(); if ($("rollView").hidden) $("tabRolls").classList.add("new"); })
+    .on("broadcast", {event: "poi"}, () => loadSceneObjects())
     .subscribe();
 }
 
@@ -1119,6 +1147,59 @@ $("jNotesSave").onclick = async () => {
   if (error) jmsg("Не удалось сохранить заметки."); else { delete $("jNotes").dataset.dirty; jmsg("Заметки сохранены.", true); }
 };
 
+// ---- Броски: кубики кидает сервер (функция roll_dice), журнал общий
+let rolls = [];
+const rmsg = (t, ok) => { $("rollMsg").textContent = t; $("rollMsg").className = "msg" + (ok ? " good" : ""); };
+[4, 6, 8, 10, 12, 20, 100].forEach(s => { const b = el("button", "", "d" + s); b.type = "button"; b.onclick = () => doRoll(s); $("rBtns").appendChild(b); });
+
+function fillRollChars() {
+  const s = $("rC"), keep = s.value; s.innerHTML = "";
+  const o0 = el("option", "", me && me.master ? "без персонажа" : "от своего имени"); o0.value = ""; s.appendChild(o0);
+  (chars || []).filter(c => me && (me.master || c.owner === me.id)).forEach(c => { const o = el("option", "", c.name); o.value = c.id; s.appendChild(o); });
+  s.value = keep;
+}
+async function doRoll(sides) {
+  const count = Math.min(20, Math.max(1, Math.round(+$("rN").value) || 1));
+  const mod = Math.max(-100, Math.min(100, Math.round(+$("rM").value) || 0)), mode = $("rA").value;
+  if (mode !== "normal" && (sides !== 20 || count !== 1)) { rmsg("Преимущество и помеха только для одного d20."); return; }
+  rmsg("");
+  const { error } = await db.rpc("roll_dice", {p_label: $("rL").value.trim(), p_count: count, p_sides: sides, p_mod: mod, p_mode: mode, p_hidden: !!(me.master && $("rH").checked), p_character: $("rC").value || null});
+  if (error) rmsg("Бросок не удался. Мастеру: выполнен ли supabase_rolls.sql?"); else loadRolls();
+}
+async function loadRolls() {
+  const { data, error } = await db.from("rolls").select("id,who,char_name,label,sides,count,modifier,mode,dice,kept,total,hidden,created_at").order("created_at", {ascending: false}).limit(50);
+  if (error) { rmsg("Журнал бросков недоступен. Мастеру: выполните supabase_rolls.sql."); return; }
+  rolls = data; renderRolls();
+}
+function rollText(r) {
+  const sign = r.modifier > 0 ? " + " + r.modifier : r.modifier < 0 ? " − " + Math.abs(r.modifier) : "";
+  if (r.mode !== "normal") return "d20 с " + (r.mode === "adv" ? "преимуществом" : "помехой") + ": [" + r.dice.join(", ") + "] → " + r.kept[0] + sign + " = ";
+  return r.count + "d" + r.sides + sign + ": [" + r.dice.join(", ") + "] = ";
+}
+function renderRolls() {
+  const box = $("rollLog"); box.innerHTML = "";
+  if (!rolls.length) { box.appendChild(el("p", "ms", "Бросков пока не было.")); return; }
+  rolls.forEach(r => {
+    const row = el("div", "rolli");
+    const head = el("div", "", ""); head.appendChild(el("b", "", r.char_name ? r.char_name + " (" + r.who + ")" : (r.who || "Кто-то")));
+    if (r.label) head.append(" · " + r.label);
+    if (r.hidden) head.appendChild(el("span", "tag", " · скрытый"));
+    const t = el("small", "", " " + new Date(r.created_at).toLocaleTimeString("ru", {hour: "2-digit", minute: "2-digit"})); head.appendChild(t);
+    const line = el("div", "", rollText(r));
+    const single20 = r.sides === 20 && r.count === 1;
+    const tot = el("b", single20 && r.kept[0] === 20 ? "crit" : single20 && r.kept[0] === 1 ? "fail" : "", String(r.total));
+    line.appendChild(tot);
+    if (single20 && r.kept[0] === 20) line.append(" · критическая удача");
+    if (single20 && r.kept[0] === 1) line.append(" · критический провал");
+    row.append(head, line); box.appendChild(row);
+  });
+}
+$("rClear").onclick = async () => {
+  if (!confirm("Очистить весь журнал бросков?")) return;
+  const { error } = await db.from("rolls").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  if (error) rmsg("Не удалось очистить."); else loadRolls();
+};
+
 // ---- Импровизация: кубики и таблицы случайного выбора (без ИИ)
 let rt = [], rtEditing = null, rtLast = {}, diceLog = [], rtLog = [];
 const impmsg = (t, ok) => { $("impMsg").textContent = t; $("impMsg").className = "msg" + (ok ? " good" : ""); };
@@ -1202,6 +1283,9 @@ async function poiClick(e) {
   if (error) mmsg("Не удалось поставить точку. Мастеру: выполнен ли supabase_poi.sql?"); else loadSceneObjects();
 }
 
+// Когда точка становится скрытой, база не присылает игроку событие (строка ему больше не видна), поэтому мастер шлёт отдельный сигнал.
+const pingPoi = () => { if (chan) chan.send({type: "broadcast", event: "poi", payload: {}}); };
+
 function poiPopup(p) {
   const k = POI[p.kind] || POI.other, box = el("div");
   L.DomEvent.disableClickPropagation(box); L.DomEvent.on(box, "keydown keypress keyup", L.DomEvent.stopPropagation);
@@ -1219,7 +1303,7 @@ function poiPopup(p) {
   const save = el("button", "", "Сохранить"), del = el("button", "danger", "Удалить"); save.type = del.type = "button";
   save.onclick = async () => {
     const { error } = await db.from("map_points").update({name: name.value.trim() || k.label, kind: kind.value, note: note.value, visible: vis.checked}).eq("id", p.id);
-    if (error) mmsg("Не удалось сохранить точку."); else loadSceneObjects();
+    if (error) mmsg("Не удалось сохранить точку."); else { loadSceneObjects(); pingPoi(); }
   };
   del.onclick = async () => {
     if (!confirm("Удалить точку «" + p.name + "»?")) return;
