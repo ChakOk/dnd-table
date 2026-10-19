@@ -116,6 +116,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <div class="row"><select id="tokChar" aria-label="Персонаж"></select><button id="addTok" type="button">Поставить персонажа</button></div>
         <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
         <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
+        <div class="row"><button id="fogBtn" type="button" aria-pressed="false">Туман</button><button id="fogOpen" type="button" aria-pressed="false">Открыть зону</button><select id="fogSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select><button id="fogClose" type="button" aria-pressed="false">Закрыть зону</button><button id="fogReset" class="danger" type="button">Скрыть всё</button></div>
         <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
         <div id="board" class="row" aria-label="Звуки"></div>
       <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
@@ -184,14 +185,14 @@ const $ = id => document.getElementById(id);
 const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
-let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [];
+let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false;
 const mmsg = (t, ok) => { $("mapMsg").textContent = t; $("mapMsg").className = "msg" + (ok ? " good" : ""); };
 const ll = (x, y) => [dims.h - y, x];
 
 function clearScene() {
   if (bg) { bg.remove(); bg = null; }
   Object.values(tokM).forEach(m => m.remove()); tokM = {};
-  cityM.forEach(m => m.remove()); cityM = [];
+  cityM.forEach(m => m.remove()); cityM = []; fogOn = false; fogZ = []; drawFog();
   fxL.forEach(l => l.remove()); fxL = []; toks = []; effs = []; scn = null; dims = null;
 }
 
@@ -229,12 +230,15 @@ async function openScene() {
 async function loadSceneObjects() {
   if (!scn || !dims) return;
   const sid = scn.id;
-  const [t, e] = await Promise.all([
+  const [t, e, fz, fs] = await Promise.all([
     db.from("tokens").select("id,label,kind,owner,character_id,x,y").eq("scene_id", sid),
-    db.from("effects").select("id,kind,x,y,radius").eq("scene_id", sid)]);
+    db.from("effects").select("id,kind,x,y,radius").eq("scene_id", sid),
+    db.from("fog_zones").select("id,x,y,radius").eq("scene_id", sid),
+    db.from("settings").select("value").eq("key", "fog_" + sid).maybeSingle()]);
   if (!scn || scn.id !== sid) return;
   toks = t.data || []; effs = e.data || [];
-  drawEffects(); drawTokens();
+  fogZ = fz.data || []; fogOn = !!(fs.data && fs.data.value && fs.data.value.on); $("fogBtn").setAttribute("aria-pressed", fogOn);
+  drawEffects(); drawTokens(); refreshFog();
   if (scn.kind === "world" && !cityM.length) {
     const c = await db.from("map_points").select("id,name,continent,x,y,note").eq("kind", "city");
     if (scn && scn.id === sid) drawCities(c.data || []);
@@ -279,6 +283,7 @@ function drawCities(list) {
     m.on("click", () => { if (fxMode || rmMode) m.closePopup(); });
     cityM.push(m);
   });
+  refreshFog();
 }
 
 function drawEffects() {
@@ -332,10 +337,10 @@ async function addToken(row) {
 $("addTok").onclick = () => { const c = chars.find(c => c.id === $("tokChar").value); if (c) addToken({label: c.name, kind: "pc", character_id: c.id, owner: c.owner}); };
 $("addParty").onclick = () => addToken({label: "Партия", kind: "party"});
 function setMode(m) {
-  fxMode = m === "fx"; rmMode = m === "rm";
-  $("fxBtn").setAttribute("aria-pressed", fxMode); $("rmTok").setAttribute("aria-pressed", rmMode);
-  if (map) map.getContainer().style.cursor = fxMode ? "crosshair" : rmMode ? "pointer" : "";
-  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : "");
+  fxMode = m === "fx"; rmMode = m === "rm"; foMode = m === "fo"; fcMode = m === "fc";
+  [["fxBtn", fxMode], ["rmTok", rmMode], ["fogOpen", foMode], ["fogClose", fcMode]].forEach(([id, v]) => $(id).setAttribute("aria-pressed", v));
+  if (map) map.getContainer().style.cursor = (fxMode || foMode) ? "crosshair" : (rmMode || fcMode) ? "pointer" : "";
+  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : foMode ? "Нажимайте на карту, чтобы открыть зону." : fcMode ? "Нажмите на открытую зону, чтобы закрыть её." : "");
 }
 $("fxBtn").onclick = () => setMode(fxMode ? "" : "fx");
 $("rmTok").onclick = () => setMode(rmMode ? "" : "rm");
@@ -357,7 +362,9 @@ function boom() {
   } catch (e) {}
 }
 async function onMapClick(e) {
-  if (!fxMode || !me.master || !scn || !dims) return;
+  if (!me.master || !scn || !dims) return;
+  if (foMode || fcMode) { fogClick(e); return; }
+  if (!fxMode) return;
   const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
   if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
   const radius = Math.round(Math.max(dims.w, dims.h) / 40);
@@ -657,6 +664,8 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "tokens"}, () => { if (!dragging) loadSceneObjects(); })
     .on("postgres_changes", {event: "*", schema: "public", table: "effects"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "sounds"}, () => loadSounds())
+    .on("postgres_changes", {event: "*", schema: "public", table: "fog_zones"}, () => loadSceneObjects())
+    .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, p => { const k = p.new && p.new.key; if (!k || k.startsWith("fog_")) loadSceneObjects(); })
     .subscribe();
 }
 
@@ -766,6 +775,73 @@ $("soundForm").addEventListener("submit", async e => {
   if (error) { await db.storage.from("sounds").remove([path]); snmsg("Не удалось сохранить звук."); return; }
   $("soundForm").reset(); snmsg("Звук добавлен.", true); loadSounds();
 });
+
+// ---- Туман войны: затемнение поверх карты, мастер открывает круглые зоны.
+// Для игроков вне открытых зон скрыты метки городов и чужие токены (токены партии и свой остаются).
+const inFog = (x, y) => !fogZ.some(z => Math.hypot(z.x - x, z.y - y) <= z.radius * .9);
+const showLayer = (m, v) => { if (v && !map.hasLayer(m)) m.addTo(map); else if (!v && map.hasLayer(m)) m.remove(); };
+function ensureFog() {
+  if (fogCv || !map) return;
+  fogCv = document.createElement("canvas");
+  fogCv.style.cssText = "position:absolute;left:0;top:0;pointer-events:none;z-index:640";
+  map.getContainer().appendChild(fogCv);
+  map.on("move zoom zoomend moveend resize viewreset", drawFog);
+}
+function drawFog() {
+  if (!fogCv || !map) return;
+  const c = map.getContainer(), w = c.clientWidth, h = c.clientHeight;
+  if (fogCv.width !== w) fogCv.width = w;
+  if (fogCv.height !== h) fogCv.height = h;
+  const g = fogCv.getContext("2d"); g.clearRect(0, 0, w, h);
+  if (!fogOn || !dims) return;
+  g.fillStyle = me.master ? "rgba(6,12,18,.55)" : "rgb(6,12,18)"; g.fillRect(0, 0, w, h);
+  g.globalCompositeOperation = "destination-out";
+  const k = Math.pow(2, map.getZoom());
+  fogZ.forEach(z => {
+    const p = map.latLngToContainerPoint(ll(z.x, z.y)), r = z.radius * k;
+    const gr = g.createRadialGradient(p.x, p.y, r * .7, p.x, p.y, r);
+    gr.addColorStop(0, "rgba(0,0,0,1)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, r, 0, 7); g.fill();
+  });
+  g.globalCompositeOperation = "source-over";
+}
+function refreshFog() {
+  if (!map || !me) return;
+  ensureFog(); drawFog();
+  const hide = fogOn && !me.master;
+  toks.forEach(t => {
+    const m = tokM[t.id]; if (!m) return;
+    const always = t.kind === "party" || (t.owner && t.owner === me.id);
+    showLayer(m, !hide || always || !inFog(t.x, t.y));
+  });
+  cityM.forEach(m => { const p = m.getLatLng(); showLayer(m, !hide || !inFog(p.lng, dims.h - p.lat)); });
+}
+async function fogClick(e) {
+  const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
+  if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
+  if (foMode) {
+    const r = Math.round(Math.max(dims.w, dims.h) / {s: 40, m: 20, l: 10}[$("fogSize").value]);
+    const { error } = await db.from("fog_zones").insert({scene_id: scn.id, x, y, radius: r});
+    if (error) mmsg("Не удалось открыть зону."); else loadSceneObjects();
+  } else {
+    const hit = fogZ.filter(z => Math.hypot(z.x - x, z.y - y) <= z.radius).sort((a, b) => a.radius - b.radius)[0];
+    if (!hit) return;
+    const { error } = await db.from("fog_zones").delete().eq("id", hit.id);
+    if (error) mmsg("Не удалось закрыть зону."); else loadSceneObjects();
+  }
+}
+$("fogBtn").onclick = async () => {
+  if (!scn) return;
+  const { error } = await db.from("settings").upsert({key: "fog_" + scn.id, value: {on: !fogOn}}, {onConflict: "key"});
+  if (error) mmsg("Не удалось переключить туман."); else loadSceneObjects();
+};
+$("fogOpen").onclick = () => setMode(foMode ? "" : "fo");
+$("fogClose").onclick = () => setMode(fcMode ? "" : "fc");
+$("fogReset").onclick = async () => {
+  if (!scn || !confirm("Закрыть все открытые зоны на этой сцене?")) return;
+  const { error } = await db.from("fog_zones").delete().eq("scene_id", scn.id);
+  if (error) mmsg("Не удалось закрыть зоны."); else loadSceneObjects();
+};
 
 // ---- Вход и выход
 $("loginForm").addEventListener("submit", async e => {
