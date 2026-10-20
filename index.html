@@ -80,6 +80,7 @@ textarea{min-height:110px;resize:vertical}
 .shc{border:1px solid var(--line);border-radius:8px;padding:.4rem;text-align:center}.shc input{margin:.2rem auto;display:block}
 .shr{display:flex;align-items:center;gap:.5rem;padding:.15rem 0}.shr span{flex:1}.shr select{width:auto;margin:0}.shr input[type=checkbox]{width:auto;margin:0}
 .chk{min-width:3.6rem}
+#toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);max-width:92vw;white-space:pre-line;background:var(--sea);border:1px solid var(--brass);border-radius:6px;padding:.7rem 1rem;font:15px system-ui,sans-serif;z-index:2000;box-shadow:0 4px 18px #000a;cursor:pointer}
 .cb{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--line);border-left:4px solid transparent}
 .cb[aria-current="true"]{background:rgba(201,162,75,.15);border-left-color:var(--brass)}
 .cb.out{opacity:.5}.cb.out .n{text-decoration:line-through}.cb .n{flex:1;min-width:8rem}.cb input.num{margin:0}
@@ -98,6 +99,55 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 .tkl{background:var(--deep);color:var(--foam);border:1px solid var(--line);font:600 12px system-ui,sans-serif;padding:1px 6px;box-shadow:none}
 @media(max-width:760px){#charsView{grid-template-columns:1fr;grid-template-rows:auto 1fr}#charList{border-right:0;border-bottom:1px solid var(--line);max-height:35vh}}
 @media(max-width:760px){main{grid-template-columns:1fr;grid-template-rows:60% 40%}aside{border-left:0;border-top:1px solid var(--line)}}
+
+/* ---- Дизайн v2: плакатная типографика, зерно и свечение, выезжающее меню, панели поверх карты ---- */
+:root{--sea:#17131f;--deep:#0d0b12;--brass:#ff5a36;--foam:#f4ead5;--muted:#aaa0b8;--ok:#7fd6a0;--bad:#ff8a7a;--line:#2e2542;--disp:Impact,"Arial Narrow Bold","Haettenschweiler","Arial Black",sans-serif}
+body{background:var(--deep);position:relative}
+body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;background:radial-gradient(40% 35% at 20% 25%,#7b5cff55,transparent 70%),radial-gradient(35% 35% at 80% 30%,#ff5a3655,transparent 70%),radial-gradient(40% 40% at 55% 85%,#ffb02e44,transparent 70%);animation:drift 26s ease-in-out infinite alternate}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.05;background:repeating-linear-gradient(0deg,#fff 0 1px,transparent 1px 3px)}
+@keyframes drift{to{transform:translate(6%,-5%) scale(1.15)}}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes slidein{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+@keyframes tick{to{transform:translateX(-50%)}}
+#app>*:not(header):not([hidden]):not(#toast){animation:rise .45s cubic-bezier(.2,.8,.2,1)}
+h1,h2,h3{font-family:var(--disp);text-transform:uppercase;letter-spacing:.03em;font-weight:400}
+header{background:transparent;border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+header h1{font-size:1.9rem;line-height:1;color:var(--foam)}
+.card{background:#17131fcc;border-top-color:var(--brass);box-shadow:0 20px 60px #0008}
+button{border-radius:999px;transition:transform .18s,box-shadow .18s,background .18s}
+button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 6px 18px #ff5a3655}
+button:active:not(:disabled){transform:none}
+aside,.prog,.card{backdrop-filter:blur(6px)}
+#ticker{overflow:hidden;white-space:nowrap;border-bottom:1px solid var(--line);background:var(--brass);color:#1a0904;font:400 1rem/2 var(--disp);letter-spacing:.12em;text-transform:uppercase}
+#ticker span{display:inline-block;min-width:200%;animation:tick 40s linear infinite}
+#burger{background:var(--foam);color:#1a0904;font:400 1rem var(--disp);letter-spacing:.08em;text-transform:uppercase;margin-right:.8rem}
+.tabs{position:fixed;inset:0 auto 0 0;width:min(360px,88vw);flex-direction:column;gap:.1rem;padding:5rem 1.4rem 1.4rem;background:var(--sea);border-right:2px solid var(--brass);z-index:1100;transform:translateX(-105%);transition:transform .38s cubic-bezier(.2,.8,.2,1);overflow:auto}
+.tabs.open{transform:none;box-shadow:20px 0 60px #000a}
+.tab,.tab[aria-selected="true"]{background:transparent;border:0;border-radius:0;box-shadow:none;text-align:left;color:var(--foam);font:400 2.1rem/1.15 var(--disp);text-transform:uppercase;letter-spacing:.02em;transition:color .2s,padding .2s}
+.tab:hover:not(:disabled){transform:none;box-shadow:none;color:var(--brass);padding-left:.7rem}
+.tab[aria-selected="true"]{color:var(--brass)}.tab.new{color:var(--ok)}
+#scrim{position:fixed;inset:0;background:#000a;z-index:1050;opacity:0;pointer-events:none;transition:opacity .3s}
+#scrim.on{opacity:1;pointer-events:auto}
+#rollView,#combatView{position:fixed;top:0;right:0;bottom:0;width:min(470px,100%);z-index:900;background:var(--sea);border-left:2px solid var(--brass);overflow:auto;padding:1rem;animation:slidein .3s;box-shadow:-20px 0 60px #000a}
+#rollView .x,#combatView .x{float:right;background:var(--foam)}
+#dock{position:fixed;left:1rem;bottom:1.2rem;z-index:800;display:none;gap:.6rem}
+body:has(#mapView:not([hidden])) #dock{display:flex}
+#dock button{font:400 1.3rem var(--disp);letter-spacing:.06em;text-transform:uppercase;padding:.6rem 1.3rem;box-shadow:0 6px 20px #000a}
+#tables,#mapView aside>h2:first-child{display:none}
+#mapView{position:relative;transition:grid-template-columns .35s}
+#mapView.nopanel{grid-template-columns:1fr 0}
+#mapView.nopanel aside{padding:0;overflow:hidden;border:0}
+#asideBtn{position:absolute;top:.7rem;right:calc(300px + .7rem);z-index:800;background:var(--foam);color:#1a0904}
+#mapView.nopanel #asideBtn{right:.7rem}
+#rulesView .scn{max-width:none;display:grid;grid-template-columns:minmax(260px,340px) 1fr;column-gap:1.6rem;align-content:start}
+#rulesView .scn>*{grid-column:1}
+#rulesView #glView,#rulesView #glForm{grid-column:2;grid-row:1/span 7;align-self:start;padding:1.2rem;border:1px solid var(--line);border-radius:10px;background:#0d0b1288}
+#rulesView #glList{max-height:62vh;overflow:auto}
+#rulesView #glView h2,#rulesView #glView h3{font-size:2rem;line-height:1.1;margin:.2rem 0 .8rem}
+.shc{background:#0d0b1288;border-radius:14px;transition:transform .2s,border-color .2s}.shc:hover{transform:translateY(-3px);border-color:var(--brass)}
+.shc input{font:400 1.5rem var(--disp);text-align:center}.shc .chk{font:400 1.4rem var(--disp)}
+@media(max-width:760px){#rulesView .scn{display:block}#asideBtn,#mapView.nopanel #asideBtn{right:.7rem}#dock{bottom:.8rem}}
+@media(prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -133,6 +183,8 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
         <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
         <div class="row"><button id="fogBtn" type="button" aria-pressed="false">Туман</button><button id="fogOpen" type="button" aria-pressed="false">Открыть зону</button><select id="fogSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select><button id="fogClose" type="button" aria-pressed="false">Закрыть зону</button><button id="fogReset" class="danger" type="button">Скрыть всё</button></div>
         <div class="row"><button id="poBtn" type="button" aria-pressed="false">Поставить точку</button><select id="poKind" aria-label="Тип точки"></select></div>
+        <div class="row"><button id="zoBtn" type="button" aria-pressed="false">Зона внимания</button><input id="zoDc" type="number" min="1" max="30" value="13" aria-label="Сложность зоны" title="Сложность (СЛ)" style="width:4.5rem;margin:0"><select id="zoSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select></div>
+        <div class="row"><input id="zoNote" maxlength="500" placeholder="Что заметят (увидят только заметившие)" aria-label="Что заметят" style="flex:1;margin:0"></div>
         <div class="row"><label style="flex:1">Сцена лагеря<select id="campSel"></select></label><label>Согласие, %<input id="restPct" type="number" min="1" max="100" value="100" style="width:5rem"></label></div>
         <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
         <div class="row"><button id="backupBtn" type="button">Скачать копию данных</button></div>
@@ -140,8 +192,11 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
       </div>
       <p id="mapMsg" class="msg" role="status"></p>
+      <div id="zoLogBox" hidden><h2>Проверки внимания</h2><div id="zoLog"></div></div>
+      <div id="zoSeenBox" hidden><h2>Замеченное</h2><div id="zoSeen"></div></div>
     </aside>
   </main>
+  <div id="toast" role="status" hidden></div>
   <div id="combatView" hidden>
     <div class="scn">
       <h2>Бой</h2>
@@ -318,9 +373,10 @@ const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
 const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, данные защищены правилами базы
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes","rolls","combats","combatants"];
+const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes","rolls","combats","combatants","perception_zones","zone_notices"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
+let zoL = [], zones = [], zoMode = false;
 let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false, poMode = false, poiM = {};
 const mmsg = (t, ok) => { $("mapMsg").textContent = t; $("mapMsg").className = "msg" + (ok ? " good" : ""); };
 const ll = (x, y) => [dims.h - y, x];
@@ -329,7 +385,7 @@ function clearScene() {
   if (bg) { bg.remove(); bg = null; }
   Object.values(tokM).forEach(m => m.remove()); tokM = {};
   cityM.forEach(m => m.remove()); cityM = []; fogOn = false; fogZ = []; drawFog(); Object.values(poiM).forEach(m => m.remove()); poiM = {};
-  fxL.forEach(l => l.remove()); fxL = []; toks = []; effs = []; scn = null; dims = null;
+  fxL.forEach(l => l.remove()); fxL = []; zoL.forEach(l => l.remove()); zoL = []; zones = []; toks = []; effs = []; scn = null; dims = null;
 }
 
 async function openScene() {
@@ -366,16 +422,17 @@ async function openScene() {
 async function loadSceneObjects() {
   if (!scn || !dims) return;
   const sid = scn.id;
-  const [t, e, fz, fs, po] = await Promise.all([
+  const [t, e, fz, fs, po, zn] = await Promise.all([
     db.from("tokens").select("id,label,kind,owner,character_id,x,y").eq("scene_id", sid),
     db.from("effects").select("id,kind,x,y,radius").eq("scene_id", sid),
     db.from("fog_zones").select("id,x,y,radius").eq("scene_id", sid),
     db.from("settings").select("value").eq("key", "fog_" + sid).maybeSingle(),
-    db.from("map_points").select("id,name,kind,note,x,y,visible").eq("scene_id", sid)]);
+    db.from("map_points").select("id,name,kind,note,x,y,visible").eq("scene_id", sid),
+    me.master ? db.from("perception_zones").select("id,name,x,y,radius,dc,note,enabled").eq("scene_id", sid) : Promise.resolve({data: []})]);
   if (!scn || scn.id !== sid) return;
   toks = t.data || []; effs = e.data || [];
   fogZ = fz.data || []; fogOn = !!(fs.data && fs.data.value && fs.data.value.on); $("fogBtn").setAttribute("aria-pressed", fogOn);
-  drawEffects(); drawTokens(); drawPois(po.data || []);
+  drawEffects(); drawTokens(); drawPois(po.data || []); drawZones(zn.data || []); loadZoneNotices();
   if (scn.kind === "world" && !cityM.length) {
     const c = await db.from("map_points").select("id,name,continent,x,y,note").eq("kind", "city");
     if (scn && scn.id === sid) drawCities(c.data || []);
@@ -474,10 +531,10 @@ async function addToken(row) {
 $("addTok").onclick = () => { const c = chars.find(c => c.id === $("tokChar").value); if (c) addToken({label: c.name, kind: "pc", character_id: c.id, owner: c.owner}); };
 $("addParty").onclick = () => addToken({label: "Партия", kind: "party"});
 function setMode(m) {
-  fxMode = m === "fx"; rmMode = m === "rm"; foMode = m === "fo"; fcMode = m === "fc"; poMode = m === "po";
-  [["fxBtn", fxMode], ["rmTok", rmMode], ["fogOpen", foMode], ["fogClose", fcMode], ["poBtn", poMode]].forEach(([id, v]) => $(id).setAttribute("aria-pressed", v));
-  if (map) map.getContainer().style.cursor = (fxMode || foMode || poMode) ? "crosshair" : (rmMode || fcMode) ? "pointer" : "";
-  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : foMode ? "Нажимайте на карту, чтобы открыть зону." : fcMode ? "Нажмите на открытую зону, чтобы закрыть её." : poMode ? "Нажмите на карту, чтобы поставить точку. Новая точка скрыта от игроков." : "");
+  fxMode = m === "fx"; rmMode = m === "rm"; foMode = m === "fo"; fcMode = m === "fc"; poMode = m === "po"; zoMode = m === "zo";
+  [["fxBtn", fxMode], ["rmTok", rmMode], ["fogOpen", foMode], ["fogClose", fcMode], ["poBtn", poMode], ["zoBtn", zoMode]].forEach(([id, v]) => $(id).setAttribute("aria-pressed", v));
+  if (map) map.getContainer().style.cursor = (fxMode || foMode || poMode || zoMode) ? "crosshair" : (rmMode || fcMode) ? "pointer" : "";
+  mmsg(rmMode ? "Нажмите на токен, чтобы убрать его." : foMode ? "Нажимайте на карту, чтобы открыть зону." : fcMode ? "Нажмите на открытую зону, чтобы закрыть её." : poMode ? "Нажмите на карту, чтобы поставить точку. Новая точка скрыта от игроков." : zoMode ? "Нажмите на карту, чтобы поставить зону внимания. Игроки её не видят." : "");
 }
 $("fxBtn").onclick = () => setMode(fxMode ? "" : "fx");
 $("rmTok").onclick = () => setMode(rmMode ? "" : "rm");
@@ -501,6 +558,7 @@ function boom() {
 async function onMapClick(e) {
   if (!me.master || !scn || !dims) return;
   if (poMode) { poiClick(e); return; }
+  if (zoMode) { zoneClick(e); return; }
   if (foMode || fcMode) { fogClick(e); return; }
   if (!fxMode) return;
   const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
@@ -537,7 +595,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; rolls = []; $("rollLog").innerHTML = ""; combat = null; cmb = []; $("tabCombat").textContent = "Бой"; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; rolls = []; $("rollLog").innerHTML = ""; combat = null; cmb = []; $("tabCombat").textContent = "Бой"; $("zoLog").innerHTML = ""; $("zoSeen").innerHTML = ""; $("zoLogBox").hidden = $("zoSeenBox").hidden = true; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -561,8 +619,15 @@ async function showApp(session) {
 
 // ---- Вкладки
 const VIEWS = {combat: ["combatView", "tabCombat"], rolls: ["rollView", "tabRolls"], imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const OVER = ["combat", "rolls"]; // «Бой» и «Броски» открываются поверх карты
 function tab(name) {
-  for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
+  const over = OVER.includes(name), wasOpen = over && !$(VIEWS[name][0]).hidden;
+  for (const [k, [v, b]] of Object.entries(VIEWS)) {
+    const isO = OVER.includes(k);
+    if (isO) $(v).hidden = !(over && k === name && !wasOpen); else if (!over) $(v).hidden = k !== name;
+    if (isO || !over) $(b).setAttribute("aria-selected", !$(v).hidden);
+  }
+  if (over && wasOpen) return;
   if (name === "map") openScene();
   if (name === "scenes") loadScenes();
   if (name === "sounds") renderSounds();
@@ -898,6 +963,7 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "rolls"}, () => { loadRolls(); if ($("rollView").hidden) $("tabRolls").classList.add("new"); })
     .on("postgres_changes", {event: "*", schema: "public", table: "combats"}, onCombatEvent)
     .on("postgres_changes", {event: "*", schema: "public", table: "combatants"}, onCombatEvent)
+    .on("postgres_changes", {event: "*", schema: "public", table: "zone_notices"}, onZoneEvent)
     .on("broadcast", {event: "combat"}, onCombatEvent)
     .on("broadcast", {event: "poi"}, () => loadSceneObjects())
     .subscribe();
@@ -1259,6 +1325,77 @@ $("jNotesSave").onclick = async () => {
   if (error) jmsg("Не удалось сохранить заметки."); else { delete $("jNotes").dataset.dirty; jmsg("Заметки сохранены.", true); }
 };
 
+// ---- Зоны внимания: мастер ставит зону со сложностью, при входе токена сервер сравнивает пассивную Внимательность
+const toast = (txt, add) => {
+  const b = $("toast");
+  if (add && !b.hidden) b.textContent += "\n" + txt; else b.textContent = txt;
+  b.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { b.hidden = true; }, 9000);
+};
+$("toast").onclick = () => { $("toast").hidden = true; };
+
+async function zoneClick(e) {
+  const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat);
+  if (x < 0 || y < 0 || x > dims.w || y > dims.h) return;
+  const radius = Math.round(Math.max(dims.w, dims.h) / {s: 60, m: 30, l: 15}[$("zoSize").value]);
+  const dc = Math.min(30, Math.max(1, Math.round(+$("zoDc").value) || 13));
+  const { error } = await db.from("perception_zones").insert({scene_id: scn.id, name: "Зона внимания " + (zones.length + 1), x, y, radius, dc, note: $("zoNote").value.trim()});
+  if (error) mmsg("Не удалось поставить зону. Мастеру: выполнен ли supabase_zones.sql?"); else { $("zoNote").value = ""; loadSceneObjects(); }
+}
+function zonePopup(z) {
+  const box = el("div"); L.DomEvent.disableClickPropagation(box); L.DomEvent.on(box, "keydown keypress keyup", L.DomEvent.stopPropagation);
+  const name = el("input"); name.value = z.name; name.maxLength = 60; name.setAttribute("aria-label", "Название зоны");
+  const dc = el("input"); dc.type = "number"; dc.min = 1; dc.max = 30; dc.value = z.dc; dc.setAttribute("aria-label", "Сложность");
+  const rad = el("input"); rad.type = "number"; rad.min = 1; rad.value = Math.round(z.radius); rad.setAttribute("aria-label", "Радиус");
+  const note = el("textarea"); note.value = z.note; note.maxLength = 500; note.style.minHeight = "70px"; note.setAttribute("aria-label", "Что заметят");
+  const en = el("input"); en.type = "checkbox"; en.checked = z.enabled; en.style.cssText = "display:inline;width:auto;margin:0 .4rem 0 0";
+  const el1 = el("label"); el1.append(en, "Включена");
+  const save = el("button", "", "Сохранить"), reset = el("button", "", "Сбросить замеченное"), del = el("button", "danger", "Удалить"); save.type = reset.type = del.type = "button";
+  save.onclick = async () => {
+    const { error } = await db.from("perception_zones").update({name: name.value.trim() || "Зона внимания", dc: Math.min(30, Math.max(1, Math.round(+dc.value) || 13)), radius: Math.max(1, Math.round(+rad.value) || 1), note: note.value, enabled: en.checked}).eq("id", z.id);
+    if (error) mmsg("Не удалось сохранить зону."); else loadSceneObjects();
+  };
+  reset.onclick = async () => {
+    const { error } = await db.from("zone_notices").delete().eq("zone_id", z.id);
+    if (error) mmsg("Не удалось сбросить."); else { mmsg("Результаты сброшены: зона сработает снова при входе.", true); loadZoneNotices(); }
+  };
+  del.onclick = async () => {
+    if (!confirm("Удалить зону «" + z.name + "» вместе с результатами проверок?")) return;
+    const { error } = await db.from("perception_zones").delete().eq("id", z.id);
+    if (error) mmsg("Не удалось удалить зону."); else loadSceneObjects();
+  };
+  const r = el("div", "row"); r.append(save, reset, del);
+  box.append(name, el("small", "", "Сложность (СЛ)"), dc, el("small", "", "Радиус"), rad, note, el1, r); return box;
+}
+function drawZones(list) {
+  zoL.forEach(l => l.remove()); zoL = []; zones = list;
+  if (!me.master) return;
+  list.forEach(z => {
+    const c = L.circle(ll(z.x, z.y), {radius: z.radius, color: z.enabled ? "#7fb6d4" : "#5b6d75", weight: 2, dashArray: "6 6", fillOpacity: .08, bubblingMouseEvents: true}).addTo(map);
+    c.bindTooltip("СЛ " + z.dc + " · " + z.name, {sticky: true});
+    c.bindPopup(() => zonePopup(z));
+    c.on("click", () => { if (fxMode || rmMode || foMode || fcMode || poMode || zoMode) c.closePopup(); });
+    zoL.push(c);
+  });
+}
+async function loadZoneNotices() {
+  const r = await db.from("zone_notices").select("id,zone_name,char_name,passive,dc,noticed,message,created_at").order("created_at", {ascending: false}).limit(20);
+  if (r.error || !me) return;
+  const M = me.master, box = M ? $("zoLog") : $("zoSeen"); box.innerHTML = "";
+  $("zoLogBox").hidden = !(M && r.data.length); $("zoSeenBox").hidden = !(!M && r.data.length);
+  r.data.forEach(n => {
+    const d = el("div", "ms");
+    d.textContent = M ? new Date(n.created_at).toLocaleTimeString("ru", {hour: "2-digit", minute: "2-digit"}) + " · " + n.zone_name + ": " + n.char_name + " — " + (n.noticed ? "заметил" : "не заметил") + " (пассивная " + n.passive + " против " + n.dc + ")"
+      : n.char_name + ": " + (n.message || "что-то необычное");
+    box.appendChild(d);
+  });
+}
+function onZoneEvent(p) {
+  loadZoneNotices();
+  if (p.eventType !== "INSERT" || !p.new || !me) return;
+  if (me.master) toast("Зона «" + p.new.zone_name + "»: " + p.new.char_name + (p.new.noticed ? " заметил" : " не заметил") + " (пассивная " + p.new.passive + " против " + p.new.dc + ")", true);
+  else if (p.new.noticed) toast(p.new.char_name + " заметил: " + (p.new.message || "что-то необычное"));
+}
+
 // ---- Бой: очередь инициативы, ход виден всем
 let combat = null, cmb = [];
 const cmsg = (t, ok) => { $("cbMsg").textContent = t; $("cbMsg").className = "msg" + (ok ? " good" : ""); };
@@ -1487,6 +1624,7 @@ const POI = {
   ruins: {icon: "🏛️", label: "Разрушенный храм"}, other: {icon: "📍", label: "Другое"}};
 Object.entries(POI).forEach(([v, o]) => { const op = el("option", "", o.icon + " " + o.label); op.value = v; $("poKind").appendChild(op); });
 $("poBtn").onclick = () => setMode(poMode ? "" : "po");
+$("zoBtn").onclick = () => setMode(zoMode ? "" : "zo");
 
 async function poiClick(e) {
   const x = Math.round(e.latlng.lng), y = Math.round(dims.h - e.latlng.lat), kind = $("poKind").value;
@@ -1540,7 +1678,7 @@ function drawPois(list) {
     const m = L.marker(ll(p.x, p.y), {icon, keyboard: false, zIndexOffset: -50, bubblingMouseEvents: true}).addTo(map);
     m._sig = sig; m.bindTooltip(p.name, {direction: "top", offset: [0, -10]});
     m.bindPopup(() => poiPopup(p));
-    m.on("click", () => { if (fxMode || rmMode || foMode || fcMode || poMode) m.closePopup(); });
+    m.on("click", () => { if (fxMode || rmMode || foMode || fcMode || poMode || zoMode) m.closePopup(); });
     poiM[p.id] = m;
   });
   refreshFog();
@@ -1661,6 +1799,30 @@ db.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT" || !session) setTimeout(showLogin, 0);
   else if (event === "INITIAL_SESSION" || event === "SIGNED_IN") setTimeout(() => showApp(session), 0);
 });
+// ---- Дизайн v2: бегущая строка, выезжающее меню, закрытие панелей, кнопки на карте, сворачиваемая панель карты
+(() => {
+  const hd = document.querySelector("#app header"), tabs = document.querySelector(".tabs");
+  const ticker = document.createElement("div"); ticker.id = "ticker"; ticker.setAttribute("aria-hidden", "true");
+  const line = "Торговое море · Венторум · Маре Эдема · Падший океан · Литус Латром · ";
+  ticker.innerHTML = "<span>" + line.repeat(8) + "</span>"; hd.after(ticker);
+  const burger = document.createElement("button"); burger.id = "burger"; burger.type = "button"; burger.textContent = "Меню"; burger.setAttribute("aria-expanded", "false"); burger.setAttribute("aria-controls", "tabsNav");
+  tabs.id = "tabsNav"; hd.prepend(burger);
+  const scrim = document.createElement("div"); scrim.id = "scrim"; document.body.appendChild(scrim);
+  const setMenu = on => { tabs.classList.toggle("open", on); scrim.classList.toggle("on", on); burger.setAttribute("aria-expanded", on); };
+  burger.onclick = () => setMenu(!tabs.classList.contains("open"));
+  scrim.onclick = () => setMenu(false);
+  tabs.addEventListener("click", e => { if (e.target.closest(".tab")) setMenu(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") setMenu(false); });
+  [["rollView", "rolls"], ["combatView", "combat"]].forEach(([id, name]) => {
+    const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "Закрыть"; x.onclick = () => tab(name); $(id).prepend(x);
+  });
+  const dock = document.createElement("div"); dock.id = "dock";
+  [["Кубики", "rolls"], ["Бой", "combat"]].forEach(([txt, name]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.onclick = () => tab(name); dock.appendChild(b); });
+  document.body.appendChild(dock);
+  const ab = document.createElement("button"); ab.id = "asideBtn"; ab.type = "button"; ab.textContent = "Панель";
+  ab.onclick = () => { $("mapView").classList.toggle("nopanel"); setTimeout(() => map && map.invalidateSize(), 400); };
+  $("mapView").prepend(ab);
+})();
 </script>
 </body>
 </html>
