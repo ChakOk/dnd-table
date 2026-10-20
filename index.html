@@ -80,6 +80,9 @@ textarea{min-height:110px;resize:vertical}
 .shc{border:1px solid var(--line);border-radius:8px;padding:.4rem;text-align:center}.shc input{margin:.2rem auto;display:block}
 .shr{display:flex;align-items:center;gap:.5rem;padding:.15rem 0}.shr span{flex:1}.shr select{width:auto;margin:0}.shr input[type=checkbox]{width:auto;margin:0}
 .chk{min-width:3.6rem}
+.cb{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;padding:.4rem .5rem;border-bottom:1px solid var(--line);border-left:4px solid transparent}
+.cb[aria-current="true"]{background:rgba(201,162,75,.15);border-left-color:var(--brass)}
+.cb.out{opacity:.5}.cb.out .n{text-decoration:line-through}.cb .n{flex:1;min-width:8rem}.cb input.num{margin:0}
 #rollView{flex:1;overflow:auto;padding:1.2rem;font-family:system-ui,sans-serif}
 .rl{max-width:640px}.rl h2{font:600 1.1rem Georgia,serif;color:var(--brass);margin:0 0 .6rem}
 .rolli{padding:.45rem 0;border-bottom:1px solid var(--line);font-size:15px}.rolli small{color:var(--muted)}
@@ -113,7 +116,7 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabRolls" role="tab" type="button">Броски</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabCombat" role="tab" type="button">Бой</button><button class="tab" id="tabRolls" role="tab" type="button">Броски</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
     <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <div id="restBar" hidden></div>
@@ -139,6 +142,24 @@ button[aria-pressed="true"]{outline:2px solid var(--foam)}
       <p id="mapMsg" class="msg" role="status"></p>
     </aside>
   </main>
+  <div id="combatView" hidden>
+    <div class="scn">
+      <h2>Бой</h2>
+      <p id="cbState" class="ms"></p>
+      <div id="cbMaster" hidden>
+        <div class="row" id="cbMain"></div>
+        <div class="row" id="cbNpc" hidden>
+          <input id="cbName" maxlength="50" placeholder="Противник, например Скелет" aria-label="Название противника" style="flex:1;min-width:9rem;margin:0">
+          <input id="cbCnt" type="number" min="1" max="10" value="1" aria-label="Сколько" title="Сколько" style="width:4.5rem;margin:0">
+          <input id="cbBon" type="number" min="-10" max="20" value="0" aria-label="Бонус инициативы" title="Бонус инициативы" style="width:4.5rem;margin:0">
+          <label style="display:flex;align-items:center;gap:.4rem"><input id="cbHid" type="checkbox" style="width:auto;margin:0">скрыты от игроков</label>
+          <button id="cbAdd" type="button">Добавить противников</button>
+        </div>
+      </div>
+      <div id="cbList"></div>
+      <p id="cbMsg" class="msg" role="status"></p>
+    </div>
+  </div>
   <div id="rollView" hidden>
     <div class="rl">
       <h2>Броски</h2>
@@ -297,7 +318,7 @@ const SUPABASE_URL = "https://brotwfmicsbvxubpzxba.supabase.co";
 const SUPABASE_KEY = "sb_publishable_W_HXsPhO2fDL5-oMzdsiuA_PVT-cDbv"; // публичный ключ, данные защищены правилами базы
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const $ = id => document.getElementById(id);
-const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes","rolls"];
+const names = ["profiles","characters","character_progress","map_points","tokens","effects","fog_zones","settings","session_log","scenes","rolls","combats","combatants"];
 
 // ---- Карта сцены: фон, токены, эффекты. Координаты внутри сцены: пиксели изображения сцены, начало слева сверху.
 let map = null, bg = null, scn = null, dims = null, toks = [], tokM = {}, fxL = [], effs = [], fxMode = false, dragging = false, mapGen = 0, rmMode = false, cityM = [], fogOn = false, fogZ = [], fogCv = null, foMode = false, fcMode = false, poMode = false, poiM = {};
@@ -516,7 +537,7 @@ async function guestCheck() {
 
 // ---- Экраны
 function showLogin() {
-  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; rolls = []; $("rollLog").innerHTML = ""; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
+  stopAudio(); rest = null; $("restBar").hidden = true; document.title = baseTitle; rt = []; gl = []; jq = []; jl = []; rolls = []; $("rollLog").innerHTML = ""; combat = null; cmb = []; $("tabCombat").textContent = "Бой"; $("jNotes").value = ""; delete $("jNotes").dataset.dirty; sounds = []; lastPlayed = {}; me = null; if (chan) { db.removeChannel(chan); chan = null; } clearScene();
   $("app").hidden = true; $("login").hidden = false;
   $("pass").value = ""; $("loginBtn").disabled = false;
   guestCheck();
@@ -535,11 +556,11 @@ async function showApp(session) {
     tr.innerHTML = "<td>" + n + "</td><td class='" + (error ? "bad" : "ok") + "'>" + (error ? "нет доступа" : count + " зап.") + "</td>";
     tbl.appendChild(tr);
   }
-  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = false; $("tabRules").textContent = me.master ? "Правила" : "Как играть"; $("glH").textContent = me.master ? "Правила" : "Как играть"; $("glNew").parentElement.hidden = !me.master; document.querySelector("#rulesView details").hidden = !me.master; $("tabImp").hidden = !me.master; $("rClear").hidden = !me.master; $("rHidL").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
+  sel = null; tab("chars"); $("tabSounds").hidden = !me.master; $("tabRules").hidden = false; $("tabRules").textContent = me.master ? "Правила" : "Как играть"; $("glH").textContent = me.master ? "Правила" : "Как играть"; $("glNew").parentElement.hidden = !me.master; document.querySelector("#rulesView details").hidden = !me.master; $("tabImp").hidden = !me.master; $("rClear").hidden = !me.master; loadCombat(); $("rHidL").hidden = !me.master; loadChars(); loadScenes(); loadSounds(); loadRest(); subscribeScenes();
 }
 
 // ---- Вкладки
-const VIEWS = {rolls: ["rollView", "tabRolls"], imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const VIEWS = {combat: ["combatView", "tabCombat"], rolls: ["rollView", "tabRolls"], imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
 function tab(name) {
   for (const [k, [v, b]] of Object.entries(VIEWS)) { $(v).hidden = k !== name; $(b).setAttribute("aria-selected", k === name); }
   if (name === "map") openScene();
@@ -548,11 +569,13 @@ function tab(name) {
   if (name === "rules") loadGlossary();
   if (name === "journal") loadJournal();
   if (name === "imp") loadTables();
+  if (name === "combat") { $("tabCombat").classList.remove("new"); loadCombat(); }
   if (name === "rolls") { $("tabRolls").classList.remove("new"); fillRollChars(); loadRolls(); }
   fillCampSel();
 }
 $("tabChars").onclick = () => tab("chars");
 $("tabRolls").onclick = () => tab("rolls");
+$("tabCombat").onclick = () => tab("combat");
 $("tabScenes").onclick = () => tab("scenes");
 $("tabSounds").onclick = () => tab("sounds");
 $("tabRules").onclick = () => tab("rules");
@@ -577,7 +600,7 @@ async function loadChars() {
   }
   await loadProgress();
   if (!sel && !me.master && chars.length) sel = chars[0].id;
-  renderChars();
+  renderChars(); renderCombat();
 }
 
 function avatar(c) {
@@ -873,6 +896,9 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "fog_zones"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, p => { const k = p.new && p.new.key; if (!k || k.startsWith("fog_")) loadSceneObjects(); })
     .on("postgres_changes", {event: "*", schema: "public", table: "rolls"}, () => { loadRolls(); if ($("rollView").hidden) $("tabRolls").classList.add("new"); })
+    .on("postgres_changes", {event: "*", schema: "public", table: "combats"}, onCombatEvent)
+    .on("postgres_changes", {event: "*", schema: "public", table: "combatants"}, onCombatEvent)
+    .on("broadcast", {event: "combat"}, onCombatEvent)
     .on("broadcast", {event: "poi"}, () => loadSceneObjects())
     .subscribe();
 }
@@ -1231,6 +1257,108 @@ $("jNotes").addEventListener("input", () => { $("jNotes").dataset.dirty = "1"; }
 $("jNotesSave").onclick = async () => {
   const { error } = await db.from("player_notes").upsert({owner: me.id, body: $("jNotes").value, updated_at: new Date().toISOString()}, {onConflict: "owner"});
   if (error) jmsg("Не удалось сохранить заметки."); else { delete $("jNotes").dataset.dirty; jmsg("Заметки сохранены.", true); }
+};
+
+// ---- Бой: очередь инициативы, ход виден всем
+let combat = null, cmb = [];
+const cmsg = (t, ok) => { $("cbMsg").textContent = t; $("cbMsg").className = "msg" + (ok ? " good" : ""); };
+const pingCombat = () => { if (chan) chan.send({type: "broadcast", event: "combat", payload: {}}); };
+const onCombatEvent = () => { loadCombat(); if (me && !me.master && $("combatView").hidden) $("tabCombat").classList.add("new"); };
+const orderC = () => [...cmb].sort((a, b) => (b.initiative == null ? -999 : b.initiative) - (a.initiative == null ? -999 : a.initiative) || b.bonus - a.bonus || a.created_at.localeCompare(b.created_at));
+const mineC = c => !!(c && c.character_id && me && (chars || []).some(x => x.id === c.character_id && x.owner === me.id));
+
+async function loadCombat() {
+  const a = await db.from("combats").select("id,scene_id,round,current_id").limit(1);
+  if (a.error) { cmsg("Бой недоступен. Мастеру: выполните supabase_combat.sql."); return; }
+  combat = a.data[0] || null; cmb = [];
+  if (combat) {
+    const b = await db.from("combatants").select("id,name,character_id,initiative,bonus,hidden,defeated,created_at").eq("combat_id", combat.id);
+    if (!b.error) cmb = b.data;
+  }
+  renderCombat();
+}
+async function cmut(q) {
+  const { error } = await q;
+  if (error) { cmsg("Не удалось выполнить действие."); return false; }
+  cmsg(""); await loadCombat(); pingCombat(); return true;
+}
+function nextState() { // кто ходит следом (пропуская выбывших) и какой раунд
+  const full = orderC().filter(c => c.initiative != null);
+  if (!full.some(c => !c.defeated)) return null;
+  let pos = full.findIndex(c => c.id === combat.current_id), round = combat.round;
+  if (round === 0) { pos = -1; round = 1; }
+  for (let k = 0; k < full.length; k++) {
+    pos++; if (pos >= full.length) { pos = 0; round++; }
+    if (!full[pos].defeated) return {round, current_id: full[pos].id};
+  }
+  return null;
+}
+async function rollInit(c) {
+  const { error } = await db.rpc("roll_initiative", {p_combatant: c.id, p_mode: "normal"});
+  if (error) { cmsg("Бросок не удался."); return; }
+  cmsg(""); await loadCombat(); pingCombat();
+}
+function renderCombat() {
+  const M = !!(me && me.master), list = $("cbList"); list.innerHTML = "";
+  const ord = orderC(), cur = combat ? ord.find(c => c.id === combat.current_id) : null;
+  const myTurn = !!(combat && combat.round > 0 && mineC(cur));
+  $("tabCombat").textContent = myTurn ? "Бой: ваш ход!" : combat ? "Бой (идёт)" : "Бой";
+  $("cbState").textContent = !combat ? "Сейчас боя нет." : combat.round === 0 ? "Сбор инициативы." : "Раунд " + combat.round + " · ходит: " + (cur ? cur.name : "противники");
+  $("cbMaster").hidden = !M; $("cbNpc").hidden = !(M && combat);
+  const main = $("cbMain"); main.innerHTML = "";
+  const btn = (txt, fn, cls) => { const b = el("button", cls || "", txt); b.type = "button"; b.onclick = fn; return b; };
+  if (M) {
+    if (!combat) {
+      main.appendChild(btn("Начать бой на открытой сцене", () => { const sc = scenes.find(s => s.is_current); cmut(db.from("combats").insert({scene_id: sc ? sc.id : null})); }));
+    } else {
+      main.appendChild(btn("Добавить партию", () => {
+        const rows = chars.filter(c => !cmb.some(x => x.character_id === c.id)).map(c => ({combat_id: combat.id, name: c.name, character_id: c.id}));
+        if (!rows.length) { cmsg("Вся партия уже в бою."); return; }
+        cmut(db.from("combatants").insert(rows));
+      }));
+      main.appendChild(btn("Бросить инициативу всем без значения", async () => {
+        const todo = cmb.filter(x => x.initiative == null); if (!todo.length) { cmsg("У всех уже есть инициатива."); return; }
+        for (const c of todo) { const { error } = await db.rpc("roll_initiative", {p_combatant: c.id, p_mode: "normal"}); if (error) { cmsg("Бросок не удался."); break; } }
+        await loadCombat(); pingCombat();
+      }));
+      main.appendChild(btn(combat.round === 0 ? "Начать бой (раунд 1)" : "Следующий ход", () => {
+        const ns = nextState(); if (!ns) { cmsg("Нет участников с инициативой."); return; }
+        cmut(db.from("combats").update(ns).eq("id", combat.id));
+      }));
+      main.appendChild(btn("Завершить бой", () => { if (confirm("Завершить бой и убрать очередь?")) cmut(db.from("combats").delete().eq("id", combat.id)); }, "danger"));
+    }
+  }
+  if (combat && !ord.length) list.appendChild(el("p", "ms", M ? "Пока никого. Добавьте партию и противников." : "Участников пока нет."));
+  ord.forEach(c => {
+    const row = el("div", "cb" + (c.defeated ? " out" : ""));
+    if (combat.round > 0 && combat.current_id === c.id) row.setAttribute("aria-current", "true");
+    const nm = el("span", "n", c.name + (mineC(c) ? " (вы)" : "")); if (M && c.hidden) nm.appendChild(el("small", "", " · скрыт")); if (c.defeated) nm.appendChild(el("small", "", " · выбыл"));
+    row.appendChild(nm);
+    if (M) {
+      const ini = el("input", "num"); ini.type = "number"; ini.min = -20; ini.max = 60; ini.placeholder = "—"; ini.value = c.initiative == null ? "" : c.initiative; ini.setAttribute("aria-label", "Инициатива: " + c.name);
+      ini.onchange = () => cmut(db.from("combatants").update({initiative: ini.value === "" ? null : Math.max(-20, Math.min(60, Math.round(+ini.value) || 0))}).eq("id", c.id));
+      row.appendChild(ini);
+    } else row.appendChild(el("b", "", c.initiative == null ? "—" : String(c.initiative)));
+    if (M || (mineC(c) && c.initiative == null)) row.appendChild(btn(c.initiative == null ? "Бросить" : "Перебросить", () => rollInit(c)));
+    if (M) {
+      row.appendChild(btn(c.defeated ? "Вернуть" : "Выбыл", () => cmut(db.from("combatants").update({defeated: !c.defeated}).eq("id", c.id))));
+      if (!c.character_id) row.appendChild(btn(c.hidden ? "Показать" : "Скрыть", () => cmut(db.from("combatants").update({hidden: !c.hidden}).eq("id", c.id))));
+      row.appendChild(btn("Убрать", async () => {
+        if (combat.round > 0 && combat.current_id === c.id) {
+          const ns = nextState();
+          await db.from("combats").update(ns && ns.current_id !== c.id ? ns : {current_id: null}).eq("id", combat.id);
+        }
+        cmut(db.from("combatants").delete().eq("id", c.id));
+      }, "danger"));
+    }
+    list.appendChild(row);
+  });
+}
+$("cbAdd").onclick = () => {
+  const name = $("cbName").value.trim(); if (!name || !combat) { cmsg("Укажите название противника."); return; }
+  const n = Math.min(10, Math.max(1, Math.round(+$("cbCnt").value) || 1)), bonus = Math.min(20, Math.max(-10, Math.round(+$("cbBon").value) || 0));
+  const rows = Array.from({length: n}, (_, i) => ({combat_id: combat.id, name: n > 1 ? name + " " + (i + 1) : name, bonus, hidden: $("cbHid").checked}));
+  cmut(db.from("combatants").insert(rows)).then(ok => { if (ok) $("cbName").value = ""; });
 };
 
 // ---- Броски: кубики кидает сервер (функция roll_dice), журнал общий
