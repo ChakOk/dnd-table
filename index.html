@@ -188,6 +188,19 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
 .leaflet-tooltip-bottom:before{border-bottom-color:var(--brass2)}
 #toast{background:var(--paper);color:var(--ink);border-color:var(--brass2)}
 @media(prefers-reduced-motion:reduce){*::after{animation:none!important}}
+
+/* ---- Эргономика: кубики, список персонажей, метки на кнопках карты ---- */
+.newch{background:transparent;color:var(--brass);border:1px dashed var(--brass2);box-shadow:none;width:100%}
+.newch[aria-current="true"]{border-style:solid;background:#d9a44122}
+.newch:hover:not(:disabled){box-shadow:none;background:#d9a44122}
+#charEmpty{padding:1rem;font-size:1.05rem}
+.dice{display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin:.8rem 0}
+.dice button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.5rem .2rem;background:#12303c;color:var(--foam);border:1px solid var(--line);box-shadow:none;font-weight:700;line-height:1.1}
+.dice button small{font-size:12px;color:var(--muted)}
+.dice button:hover:not(:disabled){border-color:var(--brass);color:var(--brass);box-shadow:none}
+.dice #rModeBtn{font-size:13px;text-align:center}.dice #rModeBtn[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
+.fmf{display:flex;gap:.5rem;margin:.4rem 0}.fmf input{margin:0;flex:1}
+#dock button.new{outline:3px solid var(--ok);outline-offset:2px}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Cormorant+SC:wght@600;700&display=swap">
 </head>
@@ -207,7 +220,7 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
 <section id="app" hidden>
   <header>
     <h1>ДнД-проект</h1>
-    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabCombat" role="tab" type="button">Бой</button><button class="tab" id="tabRolls" role="tab" type="button">Броски</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
+    <div class="tabs" role="tablist"><button class="tab" id="tabChars" role="tab" type="button">Персонажи</button><button class="tab" id="tabScenes" role="tab" type="button">Сцены</button><button class="tab" id="tabMap" role="tab" type="button">Карта</button><button class="tab" id="tabSounds" role="tab" type="button" hidden>Звуки</button><button class="tab" id="tabRules" role="tab" type="button" hidden>Правила</button><button class="tab" id="tabImp" role="tab" type="button" hidden>Импровизация</button><button class="tab" id="tabCombat" role="tab" type="button" hidden>Бой</button><button class="tab" id="tabRolls" role="tab" type="button" hidden>Броски</button><button class="tab" id="tabJournal" role="tab" type="button">Журнал</button></div>
     <div><button id="audioBtn" type="button" aria-pressed="false">Включить звук</button><input id="vol" type="range" min="0" max="100" value="80" aria-label="Моя громкость" style="display:inline-block;width:90px;margin:0 .6rem;padding:0;vertical-align:middle"><span id="who"></span><button id="logout" type="button">Выйти</button></div>
   </header>
   <div id="restBar" hidden></div>
@@ -259,19 +272,11 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
   <div id="rollView" hidden>
     <div class="rl">
       <h2>Броски</h2>
-      <div class="row">
-        <input id="rN" type="number" min="1" max="20" value="1" aria-label="Сколько кубиков" title="Сколько кубиков" style="width:5rem;margin:0">
-        <input id="rM" type="number" min="-100" max="100" value="0" aria-label="Модификатор" title="Модификатор" style="width:5rem;margin:0">
-        <select id="rA" aria-label="Режим" style="width:auto;margin:0"><option value="normal">обычный</option><option value="adv">преимущество</option><option value="dis">помеха</option></select>
-        <input id="rL" maxlength="60" placeholder="Название броска, например Атака" aria-label="Название броска" style="flex:1;min-width:10rem;margin:0">
-      </div>
-      <div class="row">
-        <select id="rC" aria-label="От лица персонажа" style="width:auto;margin:0"></select>
-        <label id="rHidL" hidden style="display:flex;align-items:center;gap:.4rem"><input id="rH" type="checkbox" style="width:auto;margin:0">Скрытый бросок</label>
-      </div>
-      <div class="row" id="rBtns"></div>
+      <div class="row"><select id="rC" aria-label="От лица персонажа" style="width:auto;margin:0;flex:1"></select><label id="rHidL" hidden style="display:flex;align-items:center;gap:.4rem"><input id="rH" type="checkbox" style="width:auto;margin:0">Скрытый бросок</label></div>
+      <div id="dice" class="dice" role="group" aria-label="Кубики"></div>
+      <form id="fmForm" class="fmf"><input id="fm" maxlength="40" placeholder="2d20kh1" autocomplete="off" aria-label="Формула броска"><button type="submit">Бросить</button></form>
       <p id="rollMsg" class="msg" role="status"></p>
-      <p class="ms">Два кубика и +3 дают, например, 2d6+3. Преимущество и помеха работают только для одного d20. Результат считает сервер.</p>
+      <p class="ms">Нажмите на кубик, чтобы бросить. Формула: 2d6+3, d20, 2d20kh1 (преимущество), 2d20kl1 (помеха). Результат считает сервер.</p>
       <div id="rollLog"></div>
       <div class="row"><button id="rClear" class="danger" type="button" hidden>Очистить журнал</button></div>
     </div>
@@ -389,7 +394,8 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
   <div id="charsView">
     <div id="charList"></div>
     <div id="charEdit">
-      <form id="charForm">
+      <p id="charEmpty" class="ms" hidden></p>
+      <form id="charForm" hidden>
         <h2 id="charTitle">Новый персонаж</h2>
         <label>Имя<input id="cName" maxlength="40" required></label>
         <label>Класс
@@ -398,9 +404,9 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
         <label>Заметки<textarea id="cNotes" maxlength="2000"></textarea></label>
         <label>Фото (будет сжато до 512 пикселей)<input id="cPhoto" type="file" accept="image/jpeg,image/png,image/webp"></label>
         <img id="cPreview" class="av big" alt="" hidden>
-        <div class="row"><button id="saveBtn" type="submit">Сохранить</button><button id="delBtn" class="danger" type="button" hidden>Удалить</button></div>
-        <p id="charMsg" class="msg" role="status"></p>
-      </form>
+        <div class="row"><button id="saveBtn" type="submit">Сохранить</button><button id="cancelNew" type="button" hidden>Отмена</button><button id="delBtn" class="danger" type="button" hidden>Удалить</button></div>
+        </form>
+      <p id="charMsg" class="msg" role="status"></p>
       <div id="sheet" class="prog" hidden></div>
       <div id="progress" class="prog" hidden></div>
     </div>
@@ -660,6 +666,7 @@ async function showApp(session) {
 
 // ---- Вкладки
 const VIEWS = {combat: ["combatView", "tabCombat"], rolls: ["rollView", "tabRolls"], imp: ["impView", "tabImp"], journal: ["journalView", "tabJournal"], rules: ["rulesView", "tabRules"], sounds: ["soundsView", "tabSounds"], chars: ["charsView", "tabChars"], scenes: ["scenesView", "tabScenes"], map: ["mapView", "tabMap"]};
+const flag = (n, on) => { $(n === "rolls" ? "tabRolls" : "tabCombat").classList.toggle("new", on); const d = document.querySelector('#dock [data-tab="' + n + '"]'); if (d) d.classList.toggle("new", on); };
 const OVER = ["combat", "rolls"]; // «Бой» и «Броски» открываются поверх карты
 function tab(name) {
   const over = OVER.includes(name), wasOpen = over && !$(VIEWS[name][0]).hidden;
@@ -675,8 +682,8 @@ function tab(name) {
   if (name === "rules") loadGlossary();
   if (name === "journal") loadJournal();
   if (name === "imp") loadTables();
-  if (name === "combat") { $("tabCombat").classList.remove("new"); loadCombat(); }
-  if (name === "rolls") { $("tabRolls").classList.remove("new"); fillRollChars(); loadRolls(); }
+  if (name === "combat") { flag("combat", false); loadCombat(); }
+  if (name === "rolls") { flag("rolls", false); fillRollChars(); loadRolls(); }
   fillCampSel();
 }
 $("tabChars").onclick = () => tab("chars");
@@ -691,7 +698,7 @@ $("tabMap").onclick = () => tab("map");
 
 // ---- Персонажи
 const CLASSES = {warrior: "Воин", wizard: "Волшебник", rogue: "Плут", cleric_druid: "Жрец или друид"};
-let me = null, chars = [], sel = null, urls = {}, photoBlob = null;
+let me = null, chars = [], sel = null, urls = {}, photoBlob = null, newChar = false;
 const msg = (t, ok) => { $("charMsg").textContent = t; $("charMsg").className = "msg" + (ok ? " good" : ""); };
 
 async function loadChars() {
@@ -718,11 +725,11 @@ function avatar(c) {
 
 function renderChars() {
   const list = $("charList"); list.innerHTML = "";
-  if (me.master || !chars.length) {
-    const b = document.createElement("button"); b.type = "button";
-    b.textContent = "Новый персонаж"; b.onclick = () => { sel = null; renderChars(); };
-    list.appendChild(b);
-  }
+  if (sel) newChar = false;
+  { const b = document.createElement("button"); b.type = "button"; b.className = "newch";
+    b.textContent = "+ Новый персонаж"; if (newChar) b.setAttribute("aria-current", "true");
+    b.onclick = () => { sel = null; newChar = true; renderChars(); $("cName").focus(); };
+    list.appendChild(b); }
   chars.forEach(c => {
     const b = document.createElement("button"); b.type = "button"; b.className = "ch";
     if (c.id === sel) b.setAttribute("aria-current", "true");
@@ -739,6 +746,9 @@ function renderChars() {
   $("cNotes").value = cur ? cur.notes : ""; $("cPhoto").value = ""; photoBlob = null;
   const pv = $("cPreview"); const has = cur && cur.photo_url && urls[cur.photo_url];
   pv.hidden = !has; if (has) pv.src = urls[cur.photo_url];
+  const showEd = !!cur || newChar;
+  $("charForm").hidden = !showEd; $("charEmpty").hidden = showEd; $("cancelNew").hidden = !(newChar && !cur);
+  $("charEmpty").textContent = chars.length ? "Выберите персонажа слева или создайте нового." : "Персонажей пока нет. Нажмите «Новый персонаж».";
   $("delBtn").hidden = !(me.master && cur);
   renderSheet(cur);
   renderProgress(cur);
@@ -1013,6 +1023,8 @@ $("delBtn").addEventListener("click", async () => {
   sel = null; await loadChars(); msg("Удалено.", true);
 });
 
+$("cancelNew").onclick = () => { newChar = false; renderChars(); };
+
 // ---- Сцены: мастер создаёт и открывает для партии, игрок видит открытую сцену
 const KINDS = {world: "Мир", location: "Локация", generated: "Сгенерированная", route_segment: "Сегмент маршрута"};
 let scenes = [], chan = null;
@@ -1072,7 +1084,7 @@ function subscribeScenes() {
     .on("postgres_changes", {event: "*", schema: "public", table: "map_points"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "fog_zones"}, () => loadSceneObjects())
     .on("postgres_changes", {event: "*", schema: "public", table: "settings"}, p => { const k = p.new && p.new.key; if (!k || k.startsWith("fog_")) loadSceneObjects(); })
-    .on("postgres_changes", {event: "*", schema: "public", table: "rolls"}, () => { loadRolls(); if ($("rollView").hidden) $("tabRolls").classList.add("new"); })
+    .on("postgres_changes", {event: "*", schema: "public", table: "rolls"}, () => { loadRolls(); if ($("rollView").hidden) flag("rolls", true); })
     .on("postgres_changes", {event: "*", schema: "public", table: "combats"}, onCombatEvent)
     .on("postgres_changes", {event: "*", schema: "public", table: "combatants"}, onCombatEvent)
     .on("postgres_changes", {event: "*", schema: "public", table: "zone_notices"}, onZoneEvent)
@@ -1512,7 +1524,7 @@ function onZoneEvent(p) {
 let combat = null, cmb = [];
 const cmsg = (t, ok) => { $("cbMsg").textContent = t; $("cbMsg").className = "msg" + (ok ? " good" : ""); };
 const pingCombat = () => { if (chan) chan.send({type: "broadcast", event: "combat", payload: {}}); };
-const onCombatEvent = () => { loadCombat(); if (me && !me.master && $("combatView").hidden) $("tabCombat").classList.add("new"); };
+const onCombatEvent = () => { loadCombat(); if (me && !me.master && $("combatView").hidden) flag("combat", true); };
 const orderC = () => [...cmb].sort((a, b) => (b.initiative == null ? -999 : b.initiative) - (a.initiative == null ? -999 : a.initiative) || b.bonus - a.bonus || a.created_at.localeCompare(b.created_at));
 const mineC = c => !!(c && c.character_id && me && (chars || []).some(x => x.id === c.character_id && x.owner === me.id));
 
@@ -1552,6 +1564,7 @@ function renderCombat() {
   const ord = orderC(), cur = combat ? ord.find(c => c.id === combat.current_id) : null;
   const myTurn = !!(combat && combat.round > 0 && mineC(cur));
   $("tabCombat").textContent = myTurn ? "Бой: ваш ход!" : combat ? "Бой (идёт)" : "Бой";
+  { const cd = document.querySelector('#dock [data-tab="combat"]'); if (cd) { cd.textContent = myTurn ? "Ваш ход!" : combat ? "Бой (идёт)" : "Бой"; cd.classList.toggle("new", myTurn); } }
   $("cbState").textContent = !combat ? "Сейчас боя нет." : combat.round === 0 ? "Сбор инициативы." : "Раунд " + combat.round + " · ходит: " + (cur ? cur.name : "противники");
   $("cbMaster").hidden = !M; $("cbNpc").hidden = !(M && combat);
   const main = $("cbMain"); main.innerHTML = "";
@@ -1613,7 +1626,42 @@ $("cbAdd").onclick = () => {
 // ---- Броски: кубики кидает сервер (функция roll_dice), журнал общий
 let rolls = [];
 const rmsg = (t, ok) => { $("rollMsg").textContent = t; $("rollMsg").className = "msg" + (ok ? " good" : ""); };
-[4, 6, 8, 10, 12, 20, 100].forEach(s => { const b = el("button", "", "d" + s); b.type = "button"; b.onclick = () => doRoll(s); $("rBtns").appendChild(b); });
+const DICE = {
+  4: "<path d='M24 7L43 39H5Z'/><path d='M24 7V39M24 7L36 30L5 39M36 30L43 39'/>",
+  6: "<path d='M24 6L40 15V33L24 42L8 33V15Z'/><path d='M24 24L8 15M24 24L40 15M24 24V42'/>",
+  8: "<path d='M24 5L42 24L24 43L6 24Z'/><path d='M6 24H42M15 24L24 5M33 24L24 5'/>",
+  10: "<path d='M24 5L42 20L24 43L6 20Z'/><path d='M24 5V43M6 20L24 27L42 20'/>",
+  12: "<path d='M24 6L41 18L35 38H13L7 18Z'/><path d='M24 17L32 23L29 32H19L16 23Z'/><path d='M24 6V17M41 18L32 23M35 38L29 32M13 38L19 32M7 18L16 23'/>",
+  20: "<path d='M24 5L41 15V33L24 43L7 33V15Z'/><path d='M24 14L33 30H15Z'/><path d='M24 5V14M41 15L33 30M24 43L33 30M24 43L15 30M7 15L15 30M7 33L15 30M41 33L33 30'/>",
+  100: "<path d='M15 7L25 17L15 31L5 17Z'/><path d='M33 17L43 27L33 41L23 27Z'/>"
+};
+let rMode = "normal";
+[4, 6, 8, 10, 12, 20, 100].forEach(s => {
+  const b = el("button"); b.type = "button"; b.title = "d" + s; b.setAttribute("aria-label", "d" + s);
+  b.innerHTML = '<svg viewBox="0 0 48 48" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">' + DICE[s] + "</svg><small>d" + s + "</small>";
+  b.onclick = () => doRoll(1, s, 0, s === 20 ? rMode : "normal"); $("dice").appendChild(b);
+});
+{ const mb = el("button", "", "Обычный бросок"); mb.type = "button"; mb.id = "rModeBtn"; mb.title = "Режим для d20: обычный, с преимуществом, с помехой";
+  const names = {normal: "Обычный бросок", adv: "Преимущество", dis: "Помеха"}, next = {normal: "adv", adv: "dis", dis: "normal"};
+  mb.onclick = () => { rMode = next[rMode]; mb.textContent = names[rMode]; mb.setAttribute("aria-pressed", rMode !== "normal"); };
+  $("dice").appendChild(mb); }
+function parseFm(s) {
+  const m = /^\s*(\d*)\s*d\s*(\d+)\s*(?:k([hl])\s*(\d+)?)?\s*([+-]\s*\d+)?\s*$/i.exec(s || "");
+  if (!m) return null;
+  let count = m[1] ? +m[1] : 1; const sides = +m[2], mod = m[5] ? +m[5].replace(/\s/g, "") : 0; let mode = "normal";
+  if (m[3]) {
+    if (sides === 20 && count === 2 && (m[4] ? +m[4] : 1) === 1) { mode = m[3].toLowerCase() === "h" ? "adv" : "dis"; count = 1; }
+    else return {err: "Лучший или худший кубик берётся только так: 2d20kh1 или 2d20kl1."};
+  }
+  if (![4, 6, 8, 10, 12, 20, 100].includes(sides) || count < 1 || count > 20) return {err: "Кубик: d4, d6, d8, d10, d12, d20 или d100, не больше 20 штук."};
+  return {count, sides, mod, mode};
+}
+$("fmForm").onsubmit = e => {
+  e.preventDefault(); const p = parseFm($("fm").value);
+  if (!p) { rmsg("Не понял формулу. Примеры: 2d6+3, d20, 2d20kh1."); return; }
+  if (p.err) { rmsg(p.err); return; }
+  doRoll(p.count, p.sides, p.mod, p.mode);
+};
 
 function fillRollChars() {
   const s = $("rC"), keep = s.value; s.innerHTML = "";
@@ -1621,12 +1669,9 @@ function fillRollChars() {
   (chars || []).filter(c => me && (me.master || c.owner === me.id)).forEach(c => { const o = el("option", "", c.name); o.value = c.id; s.appendChild(o); });
   s.value = keep;
 }
-async function doRoll(sides) {
-  const count = Math.min(20, Math.max(1, Math.round(+$("rN").value) || 1));
-  const mod = Math.max(-100, Math.min(100, Math.round(+$("rM").value) || 0)), mode = $("rA").value;
-  if (mode !== "normal" && (sides !== 20 || count !== 1)) { rmsg("Преимущество и помеха только для одного d20."); return; }
+async function doRoll(count, sides, mod, mode) {
   rmsg("");
-  const { error } = await db.rpc("roll_dice", {p_label: $("rL").value.trim(), p_count: count, p_sides: sides, p_mod: mod, p_mode: mode, p_hidden: !!(me.master && $("rH").checked), p_character: $("rC").value || null});
+  const { error } = await db.rpc("roll_dice", {p_label: "", p_count: count, p_sides: sides, p_mod: Math.max(-100, Math.min(100, mod)), p_mode: mode, p_hidden: !!(me.master && $("rH").checked), p_character: $("rC").value || null});
   if (error) rmsg("Бросок не удался. Мастеру: выполнен ли supabase_rolls.sql?"); else loadRolls();
 }
 async function loadRolls() {
@@ -1926,7 +1971,7 @@ db.auth.onAuthStateChange((event, session) => {
     const x = document.createElement("button"); x.type = "button"; x.className = "x"; x.textContent = "Закрыть"; x.onclick = () => tab(name); $(id).prepend(x);
   });
   const dock = document.createElement("div"); dock.id = "dock";
-  [["Кубики", "rolls"], ["Бой", "combat"]].forEach(([txt, name]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.onclick = () => tab(name); dock.appendChild(b); });
+  [["Кубики", "rolls"], ["Бой", "combat"]].forEach(([txt, name]) => { const b = document.createElement("button"); b.type = "button"; b.textContent = txt; b.dataset.tab = name; b.onclick = () => tab(name); dock.appendChild(b); });
   document.body.appendChild(dock);
   const ab = document.createElement("button"); ab.id = "asideBtn"; ab.type = "button"; ab.textContent = "Панель";
   ab.onclick = () => { $("mapView").classList.toggle("nopanel"); setTimeout(() => map && map.invalidateSize(), 400); };
