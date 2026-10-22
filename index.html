@@ -201,6 +201,80 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
 .dice #rModeBtn{font-size:13px;text-align:center}.dice #rModeBtn[aria-pressed="true"]{border-color:var(--brass);color:var(--brass)}
 .fmf{display:flex;gap:.5rem;margin:.4rem 0}.fmf input{margin:0;flex:1}
 #dock button.new{outline:3px solid var(--ok);outline-offset:2px}
+
+/* ---- Лист персонажа (по эталону LongStoryShort, тема пиратской карты) ---- */
+#sheet{padding:0;background:transparent;border:0;box-shadow:none}
+.sxh{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.5rem;padding:1rem 1.2rem;background:linear-gradient(180deg,#123747,#0d2a37);border:1px solid var(--brass2);border-radius:10px;box-shadow:inset 0 0 0 3px #0a1f29,0 8px 24px #0008}
+.sxp{flex:none;width:84px;height:84px;border-radius:12px;border:2px solid var(--brass);background:#0a1f29;overflow:hidden;display:grid;place-items:center;font:700 2.2rem var(--disp);color:var(--brass)}
+.sxp img{width:100%;height:100%;object-fit:cover}
+.sxid{flex:1 1 300px;min-width:0}
+#charEdit .sxid h2{margin:0;font-size:2.1rem;line-height:1.1;color:var(--foam)}
+#charEdit .sxid h2::after{display:none}
+.sxmeta{display:flex;flex-wrap:wrap;gap:.4rem .6rem;align-items:center;margin-top:.4rem}
+.sxmeta input{width:9.5rem;margin:0;padding:.3rem .5rem;font-size:15px}
+.sxcls{color:var(--brass);font:700 1.05rem var(--disp);letter-spacing:.07em;text-transform:uppercase}
+.sxlv{display:inline-flex;align-items:center;gap:.4rem;padding:.1rem .7rem;border:1px solid var(--brass2);border-radius:999px;color:var(--brass);font-weight:700}
+.sxlv input{width:3.4rem!important;margin:0}
+.sxedit{margin-top:.5rem;padding:.25rem .7rem;font-size:13px;background:transparent;color:var(--muted);border:1px dashed var(--line);box-shadow:none}
+.sxst,.sxac,.sxinsp{display:flex;flex-direction:column;align-items:center;text-align:center;gap:.15rem}
+.sxst small,.sxac small,.sxbox small,.sxchip span{font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sxst b,.sxst input,.sxbox input.num,.sxac input{font:700 1.8rem/1 var(--disp);color:var(--foam)}
+#sheet input.num{width:4.4rem;text-align:center;margin:0}
+.sxst input.num,.sxac input.num{background:transparent;border:0;width:4.4rem}
+.sxac{position:relative;width:76px;height:86px;color:var(--brass);justify-content:center}
+.sxac svg{position:absolute;inset:0;width:100%;height:100%}
+.sxac input{position:relative;z-index:1;margin-top:.5rem;width:3.2rem!important}
+.sxac small{position:relative;z-index:1}
+.sxhpn{display:flex;align-items:center;gap:.2rem;border:1px solid var(--brass2);border-radius:8px;padding:.3rem .5rem;background:#0a1f29}
+.sxhpn input.big{width:4rem!important;font-size:1.6rem}
+.sxinsp{width:52px;height:52px;border-radius:50%;justify-content:center;background:#0a1f29;color:var(--muted);border:2px solid var(--line);box-shadow:none;font-size:1.6rem}
+.sxinsp[aria-pressed="true"]{color:#1d1406;background:var(--brass);border-color:var(--brass2)}
+.sxout{margin:.8rem 0 0;padding:.5rem .8rem;background:#0b2230;border-left:3px solid var(--brass);border-radius:4px;min-height:2.3em}
+.sxmain{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:1.4rem;margin-top:1.2rem;align-items:start}
+.sxabil{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.2rem}
+@media(max-width:1180px){.sxmain{grid-template-columns:1fr}}
+@media(max-width:620px){.sxabil{grid-template-columns:1fr}}
+.sxg{margin-bottom:1.2rem}
+.sxgh{display:flex;align-items:center;gap:.7rem}
+.sxgh h3{margin:0;font-size:1.6rem;letter-spacing:.06em;color:var(--foam)}
+.sxgh hr{flex:1;border:0;border-top:1px solid var(--line);margin:0}
+#sheet .sxscore{width:3.6rem;font:700 1.7rem var(--disp);background:transparent;border:0;color:var(--foam);text-align:right}
+.sxchips{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+.sxchip{display:flex;align-items:center;gap:.4rem;background:#0f2d3b;border:1px solid var(--line);border-radius:8px;padding:.25rem .4rem .25rem .6rem}
+.sxchip input[type=checkbox]{width:auto;margin:0}
+.sxv{min-width:3.2rem;padding:.3rem .6rem;font:700 1.1rem var(--disp);background:#0a1f29;color:var(--foam);border:1px solid var(--brass2);box-shadow:none;border-radius:6px}
+#sheet .sxv:hover:not(:disabled){background:#d9a44122;color:var(--brass);box-shadow:none;transform:none}
+.sxsk{display:flex;align-items:center;gap:.5rem;background:#12303c;border:1px solid var(--line);border-radius:999px;padding:.15rem .3rem .15rem .5rem;margin:.3rem 0;font:700 .92rem var(--disp);letter-spacing:.04em;text-transform:uppercase}
+.sxsk span{flex:1}
+.sxdot{background:transparent;color:var(--brass);border:0;box-shadow:none;padding:0 .2rem;font-size:1.1rem}
+#sheet .sxdot:hover:not(:disabled){box-shadow:none;transform:none}
+.sxps{margin:.2rem 0 1rem;color:var(--muted);font-size:14px}
+.sxprof h4{margin:.8rem 0 .4rem;font:700 .95rem var(--disp);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sxpills{display:flex;flex-wrap:wrap;gap:.4rem}
+.sxpill{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:999px;box-shadow:none;padding:.2rem .8rem}
+.sxpill[aria-pressed="true"]{background:var(--brass);color:#1d1406;border-color:var(--brass2)}
+.sxtop{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem}
+.sxbox{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;background:#0f2d3b;border:1px solid var(--line);border-radius:8px;padding:.5rem .4rem}
+.sxbox input{margin:0;text-align:center}
+.sxini{display:flex;align-items:center;gap:.3rem}.sxini .mini{width:3.2rem!important;font-size:1rem}
+.sxhealth{margin:1rem 0;padding:.8rem;border:1px solid var(--line);border-radius:8px;background:#0b2230;display:grid;gap:.6rem}
+.sxline{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}
+.sxline input{margin:0}.sxline input[type=checkbox]{width:auto}
+.sxtabs{display:flex;flex-wrap:wrap;align-items:center;gap:.2rem 1rem;border-bottom:1px solid var(--line);margin:1rem 0 .8rem}
+.sxtabs button{background:transparent;color:var(--muted);border:0;border-bottom:2px solid transparent;border-radius:0;box-shadow:none;padding:.3rem 0;font:700 1.05rem var(--disp);letter-spacing:.05em;text-transform:uppercase}
+.sxtabs button[aria-pressed="true"]{color:var(--brass);border-bottom-color:var(--brass)}
+#sheet .sxtabs button:hover:not(:disabled){box-shadow:none;transform:none;color:var(--brass)}
+.sxtabs .sxmode{margin:0 0 0 auto;width:auto}
+.sxrow{display:grid;grid-template-columns:minmax(0,1fr) 4.4rem 6.2rem auto;gap:.4rem;align-items:center;margin:.35rem 0}
+.sxrow input{margin:0}.sxrh span{font:700 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sxbtns{display:flex;gap:.3rem}
+.sxslots{display:grid;grid-template-columns:repeat(auto-fill,minmax(5rem,1fr));gap:.4rem;margin:.5rem 0}
+
+/* ---- Safari: сплошной фон на корне страницы, без размытия и анимированного слоя ---- */
+html{background-color:#06141a;background-image:radial-gradient(40% 35% at 18% 22%,#1f7a8a55,transparent 70%),radial-gradient(35% 35% at 82% 28%,#d9a44133,transparent 70%),radial-gradient(45% 40% at 55% 88%,#0f5f7066,transparent 70%),linear-gradient(180deg,#0b2733,#081a22 55%,#06141a);background-repeat:no-repeat;background-size:100% 100%}
+body{background:transparent}
+body::before{display:none}
+aside,.prog,.card{backdrop-filter:none;-webkit-backdrop-filter:none}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Cormorant+SC:wght@600;700&display=swap">
 </head>
@@ -698,7 +772,7 @@ $("tabMap").onclick = () => tab("map");
 
 // ---- Персонажи
 const CLASSES = {warrior: "Воин", wizard: "Волшебник", rogue: "Плут", cleric_druid: "Жрец или друид"};
-let me = null, chars = [], sel = null, urls = {}, photoBlob = null, newChar = false;
+let me = null, chars = [], sel = null, urls = {}, photoBlob = null, newChar = false, editMeta = false;
 const msg = (t, ok) => { $("charMsg").textContent = t; $("charMsg").className = "msg" + (ok ? " good" : ""); };
 
 async function loadChars() {
@@ -728,7 +802,7 @@ function renderChars() {
   if (sel) newChar = false;
   { const b = document.createElement("button"); b.type = "button"; b.className = "newch";
     b.textContent = "+ Новый персонаж"; if (newChar) b.setAttribute("aria-current", "true");
-    b.onclick = () => { sel = null; newChar = true; renderChars(); $("cName").focus(); };
+    b.onclick = () => { sel = null; newChar = true; editMeta = false; renderChars(); $("cName").focus(); };
     list.appendChild(b); }
   chars.forEach(c => {
     const b = document.createElement("button"); b.type = "button"; b.className = "ch";
@@ -737,7 +811,7 @@ function renderChars() {
     const s = document.createElement("small");
     s.textContent = CLASSES[c.class] + (me.master && c.profiles ? " · " + c.profiles.display_name : "");
     t.appendChild(s);
-    b.append(avatar(c), t); b.onclick = () => { sel = c.id; renderChars(); };
+    b.append(avatar(c), t); b.onclick = () => { sel = c.id; editMeta = false; renderChars(); };
     list.appendChild(b);
   });
   const cur = chars.find(c => c.id === sel);
@@ -747,7 +821,7 @@ function renderChars() {
   const pv = $("cPreview"); const has = cur && cur.photo_url && urls[cur.photo_url];
   pv.hidden = !has; if (has) pv.src = urls[cur.photo_url];
   const showEd = !!cur || newChar;
-  $("charForm").hidden = !showEd; $("charEmpty").hidden = showEd; $("cancelNew").hidden = !(newChar && !cur);
+  $("charForm").hidden = !(newChar && !cur) && !(cur && editMeta); $("charEmpty").hidden = showEd; $("cancelNew").hidden = !(newChar && !cur);
   $("charEmpty").textContent = chars.length ? "Выберите персонажа слева или создайте нового." : "Персонажей пока нет. Нажмите «Новый персонаж».";
   $("delBtn").hidden = !(me.master && cur);
   renderSheet(cur);
@@ -760,7 +834,7 @@ const SKILLS = [["Акробатика", "dex"], ["Анализ", "int"], ["Ат
 const sgn = n => (n < 0 ? "−" : "+") + Math.abs(n), abMod = s => Math.floor((s - 10) / 2);
 function getSheet(c) {
   const d = {lvl: 1, ab: {str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10}, ac: 10, hp: {cur: 10, max: 10, tmp: 0}, spd: 30, ini: 0}, s = c.sheet || {}, sp = s.spl || {};
-  c.sheet = {...d, race: "", bg: "", insp: false, feat: "", desc: "", notes: "", ...s,
+  c.sheet = {...d, race: "", bg: "", insp: false, feat: "", desc: "", notes: "", goals: "", cond: "", exh: 0, ...s, prof: {ar: {...(s.prof && s.prof.ar)}, wp: {...(s.prof && s.prof.wp)}, ot: (s.prof && s.prof.ot) || ""},
     ab: {...d.ab, ...s.ab}, hp: {...d.hp, ...s.hp}, sv: {...s.sv}, sk: {...s.sk},
     hd: {die: 8, cur: 1, max: 1, ...s.hd}, ds: {s: 0, f: 0, ...s.ds}, coins: {cp: 0, sp: 0, gp: 0, ...s.coins},
     atk: s.atk || [], inv: s.inv || [], spl: {slots: {...sp.slots}, list: sp.list || ""}};
@@ -772,7 +846,7 @@ function renderSheet(cur) {
   const S = getSheet(cur), can = me.master || cur.owner === me.id, ups = [];
   const pb = () => 2 + Math.floor((S.lvl - 1) / 4), mod = k => abMod(S.ab[k]);
   const refresh = () => ups.forEach(f => f());
-  const note = el("p", "ms", ""), out = el("p", "ms", ""); let timer = null;
+  const note = el("p", "ms", ""), out = el("p", "sxout", "Нажмите на число, чтобы бросить d20."); let timer = null;
   const save = () => {
     clearTimeout(timer); note.textContent = "Сохранение…";
     timer = setTimeout(async () => {
@@ -780,15 +854,14 @@ function renderSheet(cur) {
       note.textContent = error ? "Не удалось сохранить лист. Мастеру: выполните supabase_sheet_and_player_rules.sql." : "Лист сохранён.";
     }, 700);
   };
-  const bind = (obj, key, min, max) => {
-    const i = el("input", "num"); i.type = "number"; i.min = min; i.max = max; i.value = obj[key]; i.disabled = !can;
+  const bind = (obj, key, min, max, cls) => {
+    const i = el("input", "num" + (cls ? " " + cls : "")); i.type = "number"; i.min = min; i.max = max; i.value = obj[key]; i.disabled = !can;
     i.oninput = () => { obj[key] = Math.min(max, Math.max(min, Math.round(+i.value) || 0)); refresh(); save(); };
     ups.push(() => { if (document.activeElement !== i) i.value = obj[key]; }); return i;
   };
   const field = (obj, key, ph) => { const i = el("input"); i.value = obj[key] || ""; i.placeholder = ph; i.maxLength = 60; i.disabled = !can; i.setAttribute("aria-label", ph); i.oninput = () => { obj[key] = i.value; save(); }; return i; };
-  const area = (obj, key, ph) => { const a = el("textarea"); a.value = obj[key] || ""; a.placeholder = ph; a.maxLength = 4000; a.disabled = !can; a.style.minHeight = "200px"; a.setAttribute("aria-label", ph); a.oninput = () => { obj[key] = a.value; save(); }; return a; };
-  const check = (obj, key, label) => { const l = el("label"); l.style.cssText = "display:flex;align-items:center;gap:.4rem;margin:0"; const c = el("input"); c.type = "checkbox"; c.checked = !!obj[key]; c.disabled = !can; c.style.cssText = "width:auto;margin:0"; c.onchange = () => { obj[key] = c.checked; save(); }; l.append(c, label); return l; };
-  const mode = el("select"); [["normal", "обычный бросок"], ["adv", "с преимуществом"], ["dis", "с помехой"]].forEach(([v, x]) => { const o = el("option", "", x); o.value = v; mode.appendChild(o); });
+  const area = (obj, key, ph, h) => { const a = el("textarea"); a.value = obj[key] || ""; a.placeholder = ph; a.maxLength = 4000; a.disabled = !can; a.style.minHeight = (h || 200) + "px"; a.setAttribute("aria-label", ph); a.oninput = () => { obj[key] = a.value; save(); }; return a; };
+  const mode = el("select", "sxmode"); [["normal", "обычный бросок"], ["adv", "с преимуществом"], ["dis", "с помехой"]].forEach(([v, x]) => { const o = el("option", "", x); o.value = v; mode.appendChild(o); }); mode.setAttribute("aria-label", "Режим броска d20");
   const show = (label, r) => { out.textContent = label + ": " + rollText(r) + r.total; };
   const call = async (label, count, sides, m, md) => {
     out.textContent = "";
@@ -802,83 +875,99 @@ function renderSheet(cur) {
     if (!m || ![4, 6, 8, 10, 12, 20, 100].includes(+m[2]) || +m[1] > 20 || +m[1] < 1) { out.textContent = "Урон записывайте так: 1d8+2"; return; }
     call(label + ": урон", +m[1], +m[2], +(m[3] || "0").replace(/\s/g, ""), "normal");
   };
-  const rollBtn = (label, bonus) => { const b = el("button", "chk"); b.type = "button"; b.disabled = !can; ups.push(() => b.textContent = sgn(bonus())); b.onclick = () => rollD20(label, bonus()); return b; };
-  const col = () => el("div", "shcol");
-  const mini = (title, node) => { const c = el("div", "shc"); c.append(el("div", "", title), node); return c; };
-
-  // Шапка
-  const head = el("div", "shh"); head.append(el("h2", "", cur.name), field(S, "race", "Народ"), field(S, "bg", "Происхождение"));
-  const lv = el("span", "", "Ур. "); lv.appendChild(bind(S, "lvl", 1, 20)); const pbt = el("span", "", ""); ups.push(() => pbt.textContent = "Бонус мастерства " + sgn(pb()));
-  head.append(lv, pbt, check(S, "insp", "Вдохновение"));
-  const mr = el("p", "ms", "Бросок с листа: "); mr.append(mode);
-
-  // Левая колонка
-  const L = col(), grid = el("div", "shg");
-  ABIL.forEach(([k, n]) => { const c = el("div", "shc"); c.append(el("div", "", n), rollBtn("Проверка: " + n, () => mod(k)), bind(S.ab, k, 1, 30)); grid.appendChild(c); });
-  L.append(grid, el("h3", "", "Спасброски"));
-  ABIL.forEach(([k, n]) => {
-    const r = el("div", "shr"), cb = el("input"); cb.type = "checkbox"; cb.checked = !!S.sv[k]; cb.disabled = !can; cb.setAttribute("aria-label", "Владение: " + n);
-    cb.onchange = () => { S.sv[k] = cb.checked; refresh(); save(); };
-    r.append(cb, el("span", "", n), rollBtn("Спасбросок: " + n, () => mod(k) + (S.sv[k] ? pb() : 0))); L.appendChild(r);
-  });
-  L.appendChild(el("h3", "", "Навыки"));
+  const chk = (label, bonus) => { const b = el("button", "sxv"); b.type = "button"; b.disabled = !can; b.setAttribute("aria-label", "Бросок: " + label); ups.push(() => b.textContent = sgn(bonus())); b.onclick = () => rollD20(label, bonus()); return b; };
   const skB = n => { const s = SKILLS.find(x => x[0] === n); return mod(s[1]) + pb() * (S.sk[n] || 0); };
-  SKILLS.forEach(([n, a]) => {
-    const r = el("div", "shr"), sl = el("select"); sl.disabled = !can; sl.setAttribute("aria-label", "Владение: " + n);
-    [["0", "—"], ["1", "вл."], ["2", "маст."]].forEach(([v, x]) => { const o = el("option", "", x); o.value = v; sl.appendChild(o); });
-    sl.value = String(S.sk[n] || 0); sl.onchange = () => { S.sk[n] = +sl.value; refresh(); save(); };
-    const nm = el("span", "", n + " "); nm.appendChild(el("small", "", ABIL.find(x => x[0] === a)[1]));
-    r.append(sl, nm, rollBtn(n, () => skB(n))); L.appendChild(r);
-  });
-  const pp = el("p", "ms", ""); ups.push(() => pp.textContent = "Пассивная Внимательность: " + (10 + skB("Внимательность"))); L.appendChild(pp);
+  const lab = (node, text) => { const d = el("div", "sxbox"); d.append(node, el("small", "", text)); return d; };
 
-  // Центр
-  const C = col(), top = el("div", "shg");
-  top.append(mini("КД", bind(S, "ac", 0, 40)), mini("Инициатива", rollBtn("Инициатива", () => mod("dex") + S.ini)), mini("Скорость, фт", bind(S, "spd", 0, 200)));
-  const ini = el("p", "ms", "Добавочный бонус инициативы "); ini.appendChild(bind(S, "ini", -20, 20));
-  const hp = el("div", "shg"); hp.append(mini("Хиты", bind(S.hp, "cur", 0, 999)), mini("Максимум", bind(S.hp, "max", 1, 999)), mini("Временные", bind(S.hp, "tmp", 0, 999)));
-  const amt = el("input", "num"); amt.type = "number"; amt.min = 1; amt.value = 1; amt.disabled = !can; amt.setAttribute("aria-label", "Сколько");
+  // Шапка: портрет, имя, КД, скорость, мастерство, золото, вдохновение, хиты
+  const head = el("div", "sxh"), pt = el("div", "sxp");
+  { const u = cur.photo_url && urls[cur.photo_url]; if (u) { const im = el("img"); im.src = u; im.alt = ""; pt.appendChild(im); } else pt.textContent = (cur.name || "?").charAt(0).toUpperCase(); }
+  const ident = el("div", "sxid"), meta = el("div", "sxmeta"), lv = el("span", "sxlv", "Ур. "); lv.appendChild(bind(S, "lvl", 1, 20));
+  meta.append(el("span", "sxcls", CLASSES[cur.class] || ""), field(S, "race", "Народ"), field(S, "bg", "Происхождение"), lv);
+  const ed = el("button", "sxedit", "Имя, класс, фото"); ed.type = "button"; ed.disabled = !can; ed.onclick = () => { editMeta = !editMeta; renderChars(); };
+  ident.append(el("h2", "", cur.name), meta, ed);
+  const ac = el("div", "sxac"); ac.innerHTML = '<svg viewBox="0 0 60 70" aria-hidden="true"><path d="M30 3L55 12V34C55 50 44 62 30 67C16 62 5 50 5 34V12Z" fill="none" stroke="currentColor" stroke-width="3"/></svg>'; ac.append(bind(S, "ac", 0, 40), el("small", "", "КД"));
+  const spd = el("div", "sxst"); spd.append(bind(S, "spd", 0, 200), el("small", "", "Скорость, фт"));
+  const pbx = el("div", "sxst"), pbv = el("b", "", ""); ups.push(() => pbv.textContent = sgn(pb())); pbx.append(pbv, el("small", "", "Мастерство"));
+  const gold = el("div", "sxst"); gold.append(bind(S.coins, "gp", 0, 999999), el("small", "", "Золото"));
+  const insp = el("button", "sxinsp", "☀"); insp.type = "button"; insp.disabled = !can; insp.setAttribute("aria-label", "Вдохновение"); insp.title = "Вдохновение";
+  const paintI = () => insp.setAttribute("aria-pressed", !!S.insp); paintI(); insp.onclick = () => { S.insp = !S.insp; paintI(); save(); };
+  const hpb = el("div", "sxst sxhp"); hpb.append(el("div", "sxhpn"), el("small", "", "Хиты"));
+  hpb.firstChild.append(bind(S.hp, "cur", 0, 999, "big"), "/", bind(S.hp, "max", 1, 999, "big"));
+  head.append(pt, ident, ac, spd, pbx, gold, insp, hpb);
+
+  // Левая часть: две колонки характеристик с навыками
+  const group = ([k, n]) => {
+    const g = el("section", "sxg"), h = el("div", "sxgh"); h.append(el("h3", "", n), el("hr"), bind(S.ab, k, 1, 30, "sxscore"));
+    const c1 = el("div", "sxchip"), c2 = el("div", "sxchip"), cb = el("input"), chips = el("div", "sxchips");
+    c1.append(el("span", "", "Проверка"), chk("Проверка: " + n, () => mod(k)));
+    cb.type = "checkbox"; cb.checked = !!S.sv[k]; cb.disabled = !can; cb.setAttribute("aria-label", "Владение спасброском: " + n); cb.onchange = () => { S.sv[k] = cb.checked; refresh(); save(); };
+    c2.append(cb, el("span", "", "Спасбросок"), chk("Спасбросок: " + n, () => mod(k) + (S.sv[k] ? pb() : 0)));
+    chips.append(c1, c2); g.append(h, chips);
+    SKILLS.filter(s => s[1] === k).forEach(([sn]) => {
+      const r = el("div", "sxsk"), d = el("button", "sxdot"); d.type = "button"; d.disabled = !can;
+      const paint = () => { const v = S.sk[sn] || 0; d.textContent = v === 2 ? "◉" : v === 1 ? "●" : "○"; d.setAttribute("aria-label", "Владение навыком " + sn + ": " + ["нет", "владение", "мастерство"][v]); };
+      d.onclick = () => { S.sk[sn] = ((S.sk[sn] || 0) + 1) % 3; paint(); refresh(); save(); }; paint();
+      r.append(d, el("span", "", sn), chk(sn, () => skB(sn))); g.appendChild(r);
+    });
+    return g;
+  };
+  const byKey = Object.fromEntries(ABIL), cA = el("div", "sxcol"), cB = el("div", "sxcol");
+  ["str", "con", "int", "cha"].forEach(k => cA.appendChild(group([k, byKey[k]])));
+  ["dex", "wis"].forEach(k => cB.appendChild(group([k, byKey[k]])));
+  const pas = el("p", "sxps", ""); ups.push(() => pas.textContent = "Пассивные чувства: Внимательность " + (10 + skB("Внимательность")) + ", Проницательность " + (10 + skB("Проницательность")) + ", Анализ " + (10 + skB("Анализ")));
+  const pills = (title, grp, items) => {
+    const w = el("div", "sxprof"), row = el("div", "sxpills"); w.appendChild(el("h4", "", title));
+    items.forEach(([k, n]) => { const b = el("button", "sxpill", n); b.type = "button"; b.disabled = !can; const paint = () => b.setAttribute("aria-pressed", !!S.prof[grp][k]); paint(); b.onclick = () => { S.prof[grp][k] = !S.prof[grp][k]; paint(); save(); }; row.appendChild(b); });
+    w.appendChild(row); return w;
+  };
+  const oth = el("div", "sxprof"); oth.append(el("h4", "", "Прочие владения и языки"), area(S.prof, "ot", "Инструменты, языки, прочее", 90));
+  cB.append(pas, pills("Владение доспехами", "ar", [["l", "Лёгкие"], ["m", "Средние"], ["h", "Тяжёлые"], ["s", "Щит"]]), pills("Владение оружием", "wp", [["s", "Простое"], ["m", "Воинское"], ["o", "Другое"]]), oth);
+  const abil = el("div", "sxabil"); abil.append(cA, cB);
+
+  // Правая часть: инициатива, истощение, состояния, здоровье, вкладки
+  const iw = el("div", "sxini"); iw.append(chk("Инициатива", () => mod("dex") + S.ini), bind(S, "ini", -20, 20, "mini")); iw.lastChild.title = "Добавочный бонус инициативы"; iw.lastChild.setAttribute("aria-label", "Добавочный бонус инициативы");
+  const top = el("div", "sxtop"); top.append(lab(iw, "Инициатива"), lab(bind(S, "exh", 0, 6), "Истощение"), lab(field(S, "cond", "—"), "Состояния"));
+  const hl = el("div", "sxhealth"), amt = el("input", "num"); amt.type = "number"; amt.min = 1; amt.value = 1; amt.disabled = !can; amt.setAttribute("aria-label", "Сколько");
   const dmg = el("button", "danger", "Урон"), heal = el("button", "", "Лечение"); dmg.type = heal.type = "button"; dmg.disabled = heal.disabled = !can;
   const amount = () => Math.max(0, Math.round(+amt.value) || 0);
   dmg.onclick = () => { let a = amount(); const x = Math.min(S.hp.tmp, a); S.hp.tmp -= x; a -= x; S.hp.cur = Math.max(0, S.hp.cur - a); refresh(); save(); };
   heal.onclick = () => { S.hp.cur = Math.min(S.hp.max, S.hp.cur + amount()); refresh(); save(); };
-  const hr = el("div", "row"); hr.append(amt, dmg, heal);
-  const hdr = el("div", "shr"), die = el("select"); die.disabled = !can; die.setAttribute("aria-label", "Кость хитов");
+  const hr = el("div", "row"); hr.append(amt, dmg, heal, el("span", "", "Временные"), bind(S.hp, "tmp", 0, 999));
+  const hdr = el("div", "sxline"), die = el("select"); die.disabled = !can; die.setAttribute("aria-label", "Кость хитов");
   [6, 8, 10, 12].forEach(d => { const o = el("option", "", "d" + d); o.value = d; die.appendChild(o); }); die.value = S.hd.die; die.onchange = () => { S.hd.die = +die.value; save(); };
   hdr.append(el("span", "", "Кости хитов"), die, bind(S.hd, "cur", 0, 20), "из", bind(S.hd, "max", 0, 20));
-  const ds = el("div"); ds.appendChild(el("h3", "", "Спасброски от смерти"));
-  [["s", "Успехи"], ["f", "Провалы"]].forEach(([key, label]) => {
-    const r = el("div", "shr"); r.appendChild(el("span", "", label));
-    for (let i = 1; i <= 3; i++) { const cb = el("input"); cb.type = "checkbox"; cb.checked = S.ds[key] >= i; cb.disabled = !can; cb.setAttribute("aria-label", label + " " + i); cb.onchange = () => { S.ds[key] = cb.checked ? i : i - 1; refresh(); save(); }; ups.push(() => { cb.checked = S.ds[key] >= i; }); r.appendChild(cb); }
-    ds.appendChild(r);
+  const dsr = el("div", "sxline"); dsr.appendChild(el("span", "", "Спасброски от смерти"));
+  [["s", "Успех"], ["f", "Провал"]].forEach(([key, label]) => {
+    dsr.appendChild(el("small", "", label));
+    for (let i = 1; i <= 3; i++) { const cb = el("input"); cb.type = "checkbox"; cb.checked = S.ds[key] >= i; cb.disabled = !can; cb.setAttribute("aria-label", label + " " + i); cb.onchange = () => { S.ds[key] = cb.checked ? i : i - 1; refresh(); save(); }; ups.push(() => { cb.checked = S.ds[key] >= i; }); dsr.appendChild(cb); }
   });
-  const atk = el("div"); atk.appendChild(el("h3", "", "Атаки"));
-  const atkL = el("div"); atk.appendChild(atkL);
-  const drawAtk = () => {
+  hl.append(hr, hdr, dsr);
+  const R = el("div", "sxright"), bar = el("div", "sxtabs"), panes = [];
+  const pane = (title, nodes) => { const d = el("div"); d.hidden = panes.length !== sxTab; d.append(...nodes); const b = el("button", "", title); b.type = "button"; b.setAttribute("aria-pressed", panes.length === sxTab); const idx = panes.length; b.onclick = () => { sxTab = idx; panes.forEach(([pd, pb2]) => { pd.hidden = pd !== d; pb2.setAttribute("aria-pressed", pd === d); }); }; panes.push([d, b]); bar.appendChild(b); R.appendChild(d); };
+  const atkL = el("div"), drawAtk = () => {
     atkL.innerHTML = "";
     S.atk.forEach((it, i) => {
-      const r = el("div", "shr");
+      const r = el("div", "sxrow");
       const n = el("input"); n.value = it.name || ""; n.placeholder = "Оружие"; n.disabled = !can; n.setAttribute("aria-label", "Оружие"); n.oninput = () => { it.name = n.value; save(); };
       const bn = el("input", "num"); bn.type = "number"; bn.value = it.bonus || 0; bn.disabled = !can; bn.title = "Бонус к атаке"; bn.setAttribute("aria-label", "Бонус к атаке"); bn.oninput = () => { it.bonus = Math.round(+bn.value) || 0; save(); };
-      const dm = el("input"); dm.value = it.dmg || ""; dm.placeholder = "1d8+2"; dm.style.width = "5.5rem"; dm.disabled = !can; dm.setAttribute("aria-label", "Урон"); dm.oninput = () => { it.dmg = dm.value; save(); };
-      const a1 = el("button", "chk", "Атака"), a2 = el("button", "chk", "Урон"), x = el("button", "danger", "×"); a1.type = a2.type = x.type = "button"; a1.disabled = a2.disabled = x.disabled = !can;
+      const dm = el("input"); dm.value = it.dmg || ""; dm.placeholder = "1d8+2"; dm.disabled = !can; dm.setAttribute("aria-label", "Урон"); dm.oninput = () => { it.dmg = dm.value; save(); };
+      const bx = el("div", "sxbtns"), a1 = el("button", "sxv", "Атака"), a2 = el("button", "sxv", "Урон"), x = el("button", "danger", "×"); a1.type = a2.type = x.type = "button"; a1.disabled = a2.disabled = x.disabled = !can;
       a1.onclick = () => rollD20((it.name || "Атака"), it.bonus || 0); a2.onclick = () => rollDmg(it.name || "Атака", it.dmg);
       x.onclick = () => { S.atk.splice(i, 1); drawAtk(); save(); };
-      r.append(n, bn, dm, a1, a2, x); atkL.appendChild(r);
+      bx.append(a1, a2, x); r.append(n, bn, dm, bx); atkL.appendChild(r);
     });
   };
   drawAtk();
-  const addA = el("button", "", "Добавить атаку"); addA.type = "button"; addA.disabled = !can; addA.onclick = () => { S.atk.push({name: "", bonus: 0, dmg: ""}); drawAtk(); }; atk.appendChild(addA);
-  C.append(top, ini, el("h3", "", "Хиты"), hp, hr, hdr, ds, atk);
-
-  // Правая колонка: вкладки
-  const R = col(), bar = el("div", "shtabs"), panes = [];
-  const pane = (title, nodes) => { const d = el("div"); d.hidden = panes.length > 0; d.append(...nodes); const b = el("button", "", title); b.type = "button"; b.setAttribute("aria-pressed", panes.length === 0); b.onclick = () => { panes.forEach(([pd, pb2]) => { pd.hidden = pd !== d; pb2.setAttribute("aria-pressed", pd === d); }); }; panes.push([d, b]); bar.appendChild(b); R.appendChild(d); };
-  const coins = el("div", "shr"); coins.append(el("span", "", "Монеты"), "мед.", bind(S.coins, "cp", 0, 999999), "сер.", bind(S.coins, "sp", 0, 999999), "зол.", bind(S.coins, "gp", 0, 999999));
+  const addA = el("button", "", "Добавить атаку"); addA.type = "button"; addA.disabled = !can; addA.onclick = () => { S.atk.push({name: "", bonus: 0, dmg: ""}); drawAtk(); };
+  const ah = el("div", "sxrow sxrh"); ah.append(el("span", "", "Название"), el("span", "", "Бонус"), el("span", "", "Урон / вид"), el("span", ""));
+  pane("Атаки", [ah, atkL, addA]);
+  pane("Способности", [area(S, "feat", "Умения, черты и способности")]);
+  const coins = el("div", "sxline"); coins.append(el("span", "", "Монеты"), "мед.", bind(S.coins, "cp", 0, 999999), "сер.", bind(S.coins, "sp", 0, 999999), "зол.", bind(S.coins, "gp", 0, 999999));
   const invL = el("div"), drawInv = () => {
     invL.innerHTML = "";
     S.inv.forEach((it, i) => {
-      const r = el("div", "shr"), n = el("input"), q = el("input", "num"), x = el("button", "danger", "×");
+      const r = el("div", "sxline"), n = el("input"), q = el("input", "num"), x = el("button", "danger", "×");
       n.value = it.name || ""; n.placeholder = "Предмет"; n.disabled = !can; n.oninput = () => { it.name = n.value; save(); };
       q.type = "number"; q.value = it.qty == null ? 1 : it.qty; q.disabled = !can; q.title = "Количество"; q.oninput = () => { it.qty = Math.max(0, Math.round(+q.value) || 0); save(); };
       x.type = "button"; x.disabled = !can; x.onclick = () => { S.inv.splice(i, 1); drawInv(); save(); };
@@ -888,18 +977,19 @@ function renderSheet(cur) {
   drawInv();
   const addI = el("button", "", "Добавить предмет"); addI.type = "button"; addI.disabled = !can; addI.onclick = () => { S.inv.push({name: "", qty: 1}); drawInv(); };
   pane("Снаряжение", [coins, invL, addI]);
-  pane("Умения", [area(S, "feat", "Умения, черты и способности")]);
-  const slots = el("div", "shg");
-  for (let l = 1; l <= 9; l++) { const s = S.spl.slots[l] || (S.spl.slots[l] = {m: 0, u: 0}), c = el("div", "shc"); c.append(el("div", "", l + " ур."), bind(s, "u", 0, 9), bind(s, "m", 0, 9)); c.title = "Потрачено и всего ячеек"; slots.appendChild(c); }
-  pane("Заклинания", [el("p", "ms", "Ячейки: потрачено сверху, всего снизу."), slots, area(S.spl, "list", "Заклинания и заговоры")]);
-  pane("Описание", [area(S, "desc", "Внешность, характер, история")]);
+  pane("Личность", [area(S, "desc", "Внешность, характер, история")]);
+  pane("Цели", [area(S, "goals", "Цели и обеты")]);
   pane("Заметки", [area(S, "notes", "Личные заметки")]);
-  R.prepend(bar);
+  const slots = el("div", "sxslots");
+  for (let l = 1; l <= 9; l++) { const s = S.spl.slots[l] || (S.spl.slots[l] = {m: 0, u: 0}), c = el("div", "sxbox"); c.append(el("small", "", l + " ур."), bind(s, "u", 0, 9), bind(s, "m", 0, 9)); c.title = "Потрачено и всего ячеек"; slots.appendChild(c); }
+  pane("Заклинания", [el("p", "ms", "Ячейки: потрачено сверху, всего снизу."), slots, area(S.spl, "list", "Заклинания и заговоры")]);
+  bar.appendChild(mode); R.prepend(bar); R.prepend(hl); R.prepend(top);
 
-  const main = el("div", "lss"); main.append(L, C, R);
-  box.append(head, mr, out, main, note);
+  const main = el("div", "sxmain"); main.append(abil, R);
+  box.append(head, out, main, note);
   refresh();
 }
+let sxTab = 0;
 
 // ---- Прогресс: шкалы практики, вехи, открытые способности
 const SCALES = {
@@ -1011,7 +1101,7 @@ $("charForm").addEventListener("submit", async e => {
     if (up.error) note = "Сохранено, но фото не загрузилось.";
     else { await db.from("characters").update({photo_url: path}).eq("id", row.id); if (row.photo_url) await db.storage.from("photos").remove([row.photo_url]); }
   }
-  sel = row.id; await loadChars(); msg(note, note === "Сохранено."); $("saveBtn").disabled = false;
+  sel = row.id; editMeta = false; await loadChars(); msg(note, note === "Сохранено."); $("saveBtn").disabled = false;
 });
 
 $("delBtn").addEventListener("click", async () => {
