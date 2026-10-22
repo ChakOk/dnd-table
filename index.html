@@ -203,7 +203,7 @@ button:hover:not(:disabled){transform:translateY(-1px);box-shadow:inset 0 1px 0 
 #dock button.new{outline:3px solid var(--ok);outline-offset:2px}
 
 /* ---- Лист персонажа (по эталону LongStoryShort, тема пиратской карты) ---- */
-#sheet{padding:0;background:transparent;border:0;box-shadow:none}
+#sheet{max-width:1700px;margin-top:0;padding:0;background:transparent;border:0;box-shadow:none}
 .sxh{display:flex;flex-wrap:wrap;align-items:center;gap:1rem 1.5rem;padding:1rem 1.2rem;background:linear-gradient(180deg,#123747,#0d2a37);border:1px solid var(--brass2);border-radius:10px;box-shadow:inset 0 0 0 3px #0a1f29,0 8px 24px #0008}
 .sxp{flex:none;width:84px;height:84px;border-radius:12px;border:2px solid var(--brass);background:#0a1f29;overflow:hidden;display:grid;place-items:center;font:700 2.2rem var(--disp);color:var(--brass)}
 .sxp img{width:100%;height:100%;object-fit:cover}
@@ -275,6 +275,13 @@ html{background-color:#06141a;background-image:radial-gradient(40% 35% at 18% 22
 body{background:transparent}
 body::before{display:none}
 aside,.prog,.card{backdrop-filter:none;-webkit-backdrop-filter:none}
+
+/* ---- Лист: защита от наезжания блоков ---- */
+.sxabil>.sxcol,.sxmain>*,.sxright>*{min-width:0}
+.sxsk span{min-width:0;overflow-wrap:anywhere;line-height:1.15}
+.sxchip{flex-wrap:wrap}
+.sxgh h3{font-size:1.45rem}
+#charEdit{padding:1.2rem 1.6rem}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Cormorant+SC:wght@600;700&display=swap">
 </head>
