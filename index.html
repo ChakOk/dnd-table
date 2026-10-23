@@ -282,6 +282,18 @@ aside,.prog,.card{backdrop-filter:none;-webkit-backdrop-filter:none}
 .sxchip{flex-wrap:wrap}
 .sxgh h3{font-size:1.45rem}
 #charEdit{padding:1.2rem 1.6rem}
+
+/* ---- Лист: правки 22.10 (цифры, КД, спасбросок слева, круглые флажки) ---- */
+body{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}
+#sheet input.num,.sxac input,.sxscore,.sxst input{padding:0;font-variant-numeric:lining-nums}
+.sxac input{width:3.6rem!important;text-align:center;height:auto;line-height:1}
+.sxst input.num{padding:0}
+.sxchips{flex-wrap:nowrap;gap:.4rem}
+.sxchip{flex:1 1 0;min-width:0;flex-wrap:nowrap;justify-content:space-between;padding:.2rem .35rem .2rem .55rem}
+.sxchip span{font-size:10.5px;letter-spacing:.07em}
+#sheet input[type=checkbox]{appearance:none;-webkit-appearance:none;width:1.15rem;height:1.15rem;margin:0;flex:none;border:2px solid var(--brass2);border-radius:50%;background:transparent;cursor:pointer;padding:0}
+#sheet input[type=checkbox]:checked{background:var(--brass);box-shadow:inset 0 0 0 2px #0a1f29}
+#sheet input[type=checkbox]:disabled{opacity:.6;cursor:default}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Cormorant+SC:wght@600;700&display=swap">
 </head>
@@ -910,7 +922,7 @@ function renderSheet(cur) {
     c1.append(el("span", "", "Проверка"), chk("Проверка: " + n, () => mod(k)));
     cb.type = "checkbox"; cb.checked = !!S.sv[k]; cb.disabled = !can; cb.setAttribute("aria-label", "Владение спасброском: " + n); cb.onchange = () => { S.sv[k] = cb.checked; refresh(); save(); };
     c2.append(cb, el("span", "", "Спасбросок"), chk("Спасбросок: " + n, () => mod(k) + (S.sv[k] ? pb() : 0)));
-    chips.append(c1, c2); g.append(h, chips);
+    chips.append(c2, c1); g.append(h, chips);
     SKILLS.filter(s => s[1] === k).forEach(([sn]) => {
       const r = el("div", "sxsk"), d = el("button", "sxdot"); d.type = "button"; d.disabled = !can;
       const paint = () => { const v = S.sk[sn] || 0; d.textContent = v === 2 ? "◉" : v === 1 ? "●" : "○"; d.setAttribute("aria-label", "Владение навыком " + sn + ": " + ["нет", "владение", "мастерство"][v]); };
