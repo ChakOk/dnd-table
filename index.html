@@ -294,6 +294,25 @@ body{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}
 #sheet input[type=checkbox]{appearance:none;-webkit-appearance:none;width:1.15rem;height:1.15rem;margin:0;flex:none;border:2px solid var(--brass2);border-radius:50%;background:transparent;cursor:pointer;padding:0}
 #sheet input[type=checkbox]:checked{background:var(--brass);box-shadow:inset 0 0 0 2px #0a1f29}
 #sheet input[type=checkbox]:disabled{opacity:.6;cursor:default}
+
+/* ---- Панель сцены: группы, сворачиваемые разделы, индикатор инструмента ---- */
+#mapPanel .mphead{position:sticky;top:0;z-index:3;background:linear-gradient(180deg,#0f2d39,#0f2d39ee);padding-bottom:.2rem}
+.mpmode{margin:.4rem 0 0;padding:.45rem .7rem;border-left:3px solid var(--line);border-radius:4px;background:#0b2230;font-size:14px;color:var(--muted)}
+.mpmode.on{border-left-color:var(--brass);color:var(--foam)}
+.mps{border:1px solid var(--line);border-radius:8px;margin:.6rem 0;background:#0b2230}
+.mps>summary{cursor:pointer;list-style:none;padding:.55rem .8rem;display:flex;justify-content:space-between;align-items:center;font:700 1.05rem var(--disp);letter-spacing:.07em;text-transform:uppercase;color:var(--brass)}
+.mps>summary::-webkit-details-marker{display:none}
+.mps>summary::after{content:"▾";transition:transform .15s}
+.mps[open]>summary::after{transform:rotate(180deg)}
+.mps>div{padding:.1rem .8rem .8rem;display:grid;gap:.5rem}
+.mpg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem}
+.mpg button,.mps>div>button,.mpwide{width:100%;min-width:0}
+.mpwide{margin:.6rem 0 0}
+.mps label{display:grid;gap:.2rem;margin:0;font-size:13px;color:var(--muted)}
+.mps select,.mps input{margin:0;width:100%}
+#board{display:grid}
+#mapTools button[aria-pressed="true"]:not(#fogBtn){background:linear-gradient(180deg,#f6da86,#e0a63c);outline:2px solid var(--foam);outline-offset:1px}
+#fogBtn[aria-pressed="true"]{outline:2px solid var(--ok);outline-offset:1px}
 </style>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:wght@400;500;700&family=Cormorant+SC:wght@600;700&display=swap">
 </head>
@@ -319,26 +338,73 @@ body{font-variant-numeric:lining-nums;font-feature-settings:"lnum" 1}
   <div id="restBar" hidden></div>
   <main id="mapView" hidden>
     <div id="map" aria-label="Карта мира"></div>
-    <aside>
-      <h2>Таблицы базы</h2>
-      <table id="tables"></table>
-      <h2>Сцена</h2>
-      <p id="mapInfo" class="ms"></p>
-      <div id="mapTools" hidden>
-        <div class="row"><select id="tokChar" aria-label="Персонаж"></select><button id="addTok" type="button">Поставить персонажа</button></div>
-        <div class="row"><button id="addParty" type="button">Поставить партию</button><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
-        <div class="row"><button id="toWorld" type="button" hidden>К карте мира</button></div>
-        <div class="row"><button id="fogBtn" type="button" aria-pressed="false">Туман</button><button id="fogOpen" type="button" aria-pressed="false">Открыть зону</button><select id="fogSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select><button id="fogClose" type="button" aria-pressed="false">Закрыть зону</button><button id="fogReset" class="danger" type="button">Скрыть всё</button></div>
-        <div class="row"><button id="poBtn" type="button" aria-pressed="false">Поставить точку</button><select id="poKind" aria-label="Тип точки"></select></div>
-        <div class="row"><button id="zoBtn" type="button" aria-pressed="false">Зона внимания</button><input id="zoDc" type="number" min="1" max="30" value="13" aria-label="Сложность зоны" title="Сложность (СЛ)" style="width:4.5rem;margin:0"><select id="zoSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select></div>
-        <div class="row"><input id="zoNote" maxlength="500" placeholder="Что заметят (увидят только заметившие)" aria-label="Что заметят" style="flex:1;margin:0"></div>
-        <div class="row"><label style="flex:1">Сцена лагеря<select id="campSel"></select></label><label>Согласие, %<input id="restPct" type="number" min="1" max="100" value="100" style="width:5rem"></label></div>
-        <div class="row"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
-        <div class="row"><button id="backupBtn" type="button">Скачать копию данных</button></div>
-      <div id="board" class="row" aria-label="Звуки"></div>
-      <p class="small">Токены двигаются перетаскиванием. Огненный шар: включите кнопку и нажмите на карту.</p>
+    <aside id="mapPanel">
+      <div class="mphead">
+        <h2>Сцена</h2>
+        <p id="mapInfo" class="ms"></p>
+        <p id="mpMode" class="mpmode"></p>
       </div>
       <p id="mapMsg" class="msg" role="status"></p>
+      <div id="mapTools" hidden>
+        <button id="toWorld" type="button" class="mpwide" hidden>← К карте мира</button>
+        <details class="mps" open>
+          <summary>Фишки</summary>
+          <div>
+            <label>Персонаж<select id="tokChar" aria-label="Персонаж"></select></label>
+            <div class="mpg"><button id="addTok" type="button">Поставить персонажа</button><button id="addParty" type="button">Поставить партию</button></div>
+            <div class="mpg"><button id="rmTok" type="button" aria-pressed="false">Убрать токен</button><button id="rmAll" class="danger" type="button">Убрать всех</button></div>
+          </div>
+        </details>
+        <details class="mps" open>
+          <summary>Туман войны</summary>
+          <div>
+            <div class="mpg"><button id="fogBtn" type="button" aria-pressed="false">Туман</button><button id="fogReset" class="danger" type="button">Скрыть всё</button></div>
+            <div class="mpg"><button id="fogOpen" type="button" aria-pressed="false">Открыть зону</button><button id="fogClose" type="button" aria-pressed="false">Закрыть зону</button></div>
+            <label>Размер зоны<select id="fogSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select></label>
+          </div>
+        </details>
+        <details class="mps">
+          <summary>Точки на карте</summary>
+          <div>
+            <label>Тип точки<select id="poKind" aria-label="Тип точки"></select></label>
+            <button id="poBtn" type="button" aria-pressed="false">Поставить точку</button>
+          </div>
+        </details>
+        <details class="mps">
+          <summary>Зона внимания</summary>
+          <div>
+            <div class="mpg">
+              <label>Сложность (СЛ)<input id="zoDc" type="number" min="1" max="30" value="13" aria-label="Сложность зоны" title="Сложность (СЛ)"></label>
+              <label>Размер<select id="zoSize" aria-label="Размер зоны"><option value="s">Малая</option><option value="m" selected>Средняя</option><option value="l">Большая</option></select></label>
+            </div>
+            <label>Что заметят<input id="zoNote" maxlength="500" placeholder="Увидят только заметившие" aria-label="Что заметят"></label>
+            <button id="zoBtn" type="button" aria-pressed="false">Поставить зону внимания</button>
+          </div>
+        </details>
+        <details class="mps">
+          <summary>Эффекты</summary>
+          <div class="mpg"><button id="fxBtn" type="button" aria-pressed="false">Огненный шар</button><button id="fxClear" class="danger" type="button">Убрать следы</button></div>
+        </details>
+        <details class="mps">
+          <summary>Звуки</summary>
+          <div><div id="board" class="mpg" aria-label="Звуки"></div></div>
+        </details>
+        <details class="mps">
+          <summary>Лагерь и отдых</summary>
+          <div class="mpg">
+            <label>Сцена лагеря<select id="campSel"></select></label>
+            <label>Согласие, %<input id="restPct" type="number" min="1" max="100" value="100"></label>
+          </div>
+        </details>
+        <details class="mps">
+          <summary>Данные и состояние</summary>
+          <div>
+            <button id="backupBtn" type="button">Скачать копию данных</button>
+            <table id="tables"></table>
+          </div>
+        </details>
+        <p class="small">Токены двигаются перетаскиванием. Выбранный инструмент работает по нажатию на карту; нажмите на его кнопку ещё раз, чтобы отключить.</p>
+      </div>
       <div id="zoLogBox" hidden><h2>Проверки внимания</h2><div id="zoLog"></div></div>
       <div id="zoSeenBox" hidden><h2>Замеченное</h2><div id="zoSeen"></div></div>
     </aside>
@@ -2086,6 +2152,18 @@ db.auth.onAuthStateChange((event, session) => {
   ab.onclick = () => { $("mapView").classList.toggle("nopanel"); setTimeout(() => map && map.invalidateSize(), 400); };
   $("mapView").prepend(ab);
 })();
+
+// ---- Индикатор активного инструмента на панели сцены
+{
+  const tools = $("mapTools"), bar = $("mpMode");
+  const upd = () => {
+    bar.hidden = tools.hidden;
+    const b = [...tools.querySelectorAll('button[aria-pressed="true"]')].find(x => x.id !== "fogBtn");
+    if (b) { bar.textContent = "Инструмент: " + b.textContent + ". Нажмите на карту. Повторное нажатие кнопки отключает."; bar.classList.add("on"); }
+    else { bar.textContent = "Инструмент не выбран: карту можно двигать, фишки перетаскивать."; bar.classList.remove("on"); }
+  };
+  new MutationObserver(upd).observe(tools, {attributes: true, attributeFilter: ["aria-pressed", "hidden"], subtree: true}); upd();
+}
 </script>
 </body>
 </html>
